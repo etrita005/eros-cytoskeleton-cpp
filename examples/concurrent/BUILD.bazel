@@ -1,0 +1,83 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "mutex_example",
+    srcs = ["mutex_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "event_example",
+    srcs = ["event_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "vector_example",
+    srcs = ["vector_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "map_example",
+    srcs = ["map_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "hash_map_example",
+    srcs = ["hash_map_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "queue_example",
+    srcs = ["queue_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "list_example",
+    srcs = ["list_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "stack_example",
+    srcs = ["stack_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "tree_example",
+    srcs = ["tree_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/concurrent:concurrent",
+        "@boost.property_tree//:boost.property_tree",
+    ],
+)
+
+cc_binary(
+    name = "thread_example",
+    srcs = ["thread_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)
+
+cc_binary(
+    name = "thread_pool_example",
+    srcs = ["thread_pool_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/concurrent:concurrent"],
+)

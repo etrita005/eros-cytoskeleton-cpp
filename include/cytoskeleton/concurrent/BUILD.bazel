@@ -1,0 +1,27 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "concurrent",
+    hdrs = [
+        "concurrent.h",
+        "event.h",
+        "hash_map.h",
+        "list.h",
+        "map.h",
+        "mutex.h",
+        "queue.h",
+        "stack.h",
+        "thread.h",
+        "thread_pool.h",
+        "tree.h",
+        "vector.h",
+    ],
+    includes = ["../.."],
+    copts = ["-std=c++20"],
+    deps = [
+        "@boost.property_tree//:boost.property_tree",
+    ],
+    visibility = ["//visibility:public"],
+)
