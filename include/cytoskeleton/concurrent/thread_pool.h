@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <functional>
 #include <future>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <stop_token>
@@ -17,6 +18,8 @@ namespace concurrent {
 
 class ThreadPool {
  public:
+  using Ptr = std::shared_ptr<ThreadPool>;
+
   explicit ThreadPool(size_t pool_size) : stop_(false) {
     for (size_t i = 0; i < pool_size; ++i) {
       workers_.emplace_back([this](std::stop_token stop_token) {

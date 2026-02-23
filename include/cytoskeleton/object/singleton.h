@@ -14,6 +14,8 @@ namespace object {
 template <typename T>
 class Singleton : public Object {
  public:
+  using Ptr = std::shared_ptr<T>;
+
   static std::shared_ptr<T> Instance() {
     std::call_once(init_flag_, []() {
       instance_ = std::shared_ptr<T>(new T(), [](T* p) { Delete(p); });

@@ -38,6 +38,9 @@ C++20
 
 线程安全的动态数组。
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<Vector<T>>` - Vector 智能指针类型
+
 **API:**
 - `void PushBack(const T& value)` / `void PushBack(T&& value)`
 - `void PushFront(const T& value)` / `void PushFront(T&& value)`
@@ -54,6 +57,9 @@ C++20
 ### 2.2 Map<K, V>
 
 线程安全的有序 map（基于 `std::map`）。
+
+**类型定义：**
+- `using Ptr = std::shared_ptr<Map<K, V>>` - Map 智能指针类型
 
 **API:**
 - `bool Insert(const K& key, const V& value)` / `bool Insert(K&& key, V&& value)`
@@ -72,6 +78,9 @@ C++20
 
 线程安全的无序 map（基于 `std::unordered_map`）。
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<HashMap<K, V>>` - HashMap 智能指针类型
+
 **API:**
 - `bool Insert(const K& key, const V& value)` / `bool Insert(K&& key, V&& value)`
 - `bool TryGet(const K& key, V& out) const`
@@ -89,6 +98,9 @@ C++20
 
 线程安全的 FIFO 队列。
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<Queue<T>>` - Queue 智能指针类型
+
 **API:**
 - `void Enqueue(const T& value)` / `void Enqueue(T&& value)`
 - `bool Dequeue(T& out)`
@@ -103,6 +115,9 @@ C++20
 ### 2.5 List<T>
 
 线程安全的双向链表（基于 `std::list`）。
+
+**类型定义：**
+- `using Ptr = std::shared_ptr<List<T>>` - List 智能指针类型
 
 **API:**
 - `void PushBack(const T& value)` / `void PushBack(T&& value)`
@@ -121,6 +136,9 @@ C++20
 
 线程安全的栈（LIFO）。
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<Stack<T>>` - Stack 智能指针类型
+
 **API:**
 - `void Push(const T& value)` / `void Push(T&& value)`
 - `bool Pop(T& out)`
@@ -135,6 +153,9 @@ C++20
 ### 2.7 Tree
 
 线程安全的树状结构封装（基于 `boost::property_tree`）。
+
+**类型定义：**
+- `using Ptr = std::shared_ptr<Tree>` - Tree 智能指针类型
 
 **API:**
 - `void Put(const std::string& path, const boost::property_tree::ptree& value)`
@@ -156,6 +177,9 @@ C++20
 - `Join()` 和 `Join(timeout)` 必须正确处理 spurious wakeup（虚假唤醒）
 - 使用 `std::condition_variable::wait_for()` 配合循环检查条件实现
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<Event>` - Event 智能指针类型
+
 **API:**
 - `explicit Event(bool initial_state = false)`
 - `virtual ~Event()`
@@ -171,6 +195,9 @@ C++20
 
 **行为:** `Join()` 成功后自动调用 `Reset()`
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<AutoResetEvent>` - AutoResetEvent 智能指针类型
+
 **API:**
 - `explicit AutoResetEvent(bool initial_state = false)`
 - `void Reset() override`
@@ -181,6 +208,9 @@ C++20
 
 **行为:** `Join()` 成功后保持有信号状态，需手动调用 `Reset()`
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<ManualResetEvent>` - ManualResetEvent 智能指针类型
+
 **API:**
 - `explicit ManualResetEvent(bool initial_state = false)`
 - `void Reset() override`
@@ -188,6 +218,9 @@ C++20
 ### 3.4 Mutex
 
 互斥锁包装（基于 `std::recursive_mutex`，支持嵌套加锁）。
+
+**类型定义：**
+- `using Ptr = std::shared_ptr<Mutex>` - Mutex 智能指针类型
 
 **API:**
 - `void Lock()`
@@ -197,6 +230,9 @@ C++20
 ### 3.5 ReadWriteMutex
 
 读写锁包装（基于 `std::shared_mutex`）。
+
+**类型定义：**
+- `using Ptr = std::shared_ptr<ReadWriteMutex>` - ReadWriteMutex 智能指针类型
 
 **API:**
 - `void LockRead()`
@@ -210,6 +246,9 @@ C++20
 
 互斥锁 RAII 守卫。
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<MutexLock>` - MutexLock 智能指针类型
+
 **API:**
 - `explicit MutexLock(Mutex& mutex)`
 - `~MutexLock()`
@@ -218,6 +257,9 @@ C++20
 
 读锁 RAII 守卫。
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<ReadLock>` - ReadLock 智能指针类型
+
 **API:**
 - `explicit ReadLock(ReadWriteMutex& mutex)`
 - `~ReadLock()`
@@ -225,6 +267,9 @@ C++20
 ### 3.8 WriteLock
 
 写锁 RAII 守卫。
+
+**类型定义：**
+- `using Ptr = std::shared_ptr<WriteLock>` - WriteLock 智能指针类型
 
 **API:**
 - `explicit WriteLock(ReadWriteMutex& mutex)`
@@ -257,6 +302,9 @@ Thread thread("my_thread", [](std::stop_token stop_token) {
 });
 ```
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<Thread>` - Thread 智能指针类型
+
 **API:**
 - `explicit Thread(const std::string& name)` - 用于子类继承
 - `Thread(const std::string& name, std::function<void(std::stop_token)> func)` - 传入函数/lambda
@@ -277,6 +325,9 @@ Thread thread("my_thread", [](std::stop_token stop_token) {
 ```cpp
 ThreadPool pool(4);  // 4 个线程
 ```
+
+**类型定义：**
+- `using Ptr = std::shared_ptr<ThreadPool>` - ThreadPool 智能指针类型
 
 **API:**
 - `explicit ThreadPool(size_t pool_size)`

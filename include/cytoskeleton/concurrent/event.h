@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 
 namespace com {
@@ -13,6 +14,8 @@ namespace concurrent {
 
 class Event {
  public:
+  using Ptr = std::shared_ptr<Event>;
+
   explicit Event(bool initial_state = false) : signaled_(initial_state) {}
   virtual ~Event() = default;
 
@@ -52,6 +55,8 @@ class Event {
 
 class AutoResetEvent : public Event {
  public:
+  using Ptr = std::shared_ptr<AutoResetEvent>;
+
   explicit AutoResetEvent(bool initial_state = false)
       : Event(initial_state) {}
 
@@ -79,6 +84,8 @@ class AutoResetEvent : public Event {
 
 class ManualResetEvent : public Event {
  public:
+  using Ptr = std::shared_ptr<ManualResetEvent>;
+
   explicit ManualResetEvent(bool initial_state = false)
       : Event(initial_state) {}
 

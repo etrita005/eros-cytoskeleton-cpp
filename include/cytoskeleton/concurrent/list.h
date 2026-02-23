@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <list>
+#include <memory>
 #include <vector>
 
 #include "cytoskeleton/concurrent/mutex.h"
@@ -15,6 +16,8 @@ namespace concurrent {
 template <typename T>
 class List {
  public:
+  using Ptr = std::shared_ptr<List<T>>;
+
   List() = default;
   ~List() = default;
 

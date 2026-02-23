@@ -27,6 +27,8 @@ concept DerivedFromAutoStartLifecycledObject = requires {
 
 class AutoStartLifecycledObject : public LifecycledObject {
  public:
+  using Ptr = std::shared_ptr<AutoStartLifecycledObject>;
+
   AutoStartLifecycledObject() = default;
 
   explicit AutoStartLifecycledObject(

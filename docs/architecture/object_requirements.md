@@ -44,9 +44,15 @@ C++20
 
 ### 2.2 API
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<Object>` - 对象智能指针类型
+
+**构造函数：**
 - `Object()` - 构造函数
 - `virtual ~Object()` - 虚析构函数
-- `std::shared_ptr<Object> GetSharedPtr()` - 获取指向自身的 shared_ptr
+
+**公共方法：**
+- `Object::Ptr GetSharedPtr()` - 获取指向自身的 shared_ptr
 - `std::shared_ptr<const Object> GetSharedPtr() const` - 获取 const shared_ptr
 - `void Join()` - 等待对象通知（阻塞），参考 Concurrent Event 命名
 - `bool Join(std::chrono::milliseconds timeout)` - 等待对象通知（带超时）
@@ -157,6 +163,9 @@ Uninitialized -> Initializing -> Initialized -> Starting -> Running -> Stopping 
 
 ### 4.2 API
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<LifecycledObject>` - 生命周期对象智能指针类型
+
 **枚举：**
 - `State::kUninitialized` - 未初始化
 - `State::kInitializing` - 初始化中
@@ -257,6 +266,10 @@ if (service->Initialize()) {
 
 ### 5.2 API
 
+**类型定义：**
+- `using Ptr = std::shared_ptr<AutoStartLifecycledObject>` - 自启动生命周期对象智能指针类型
+
+**构造函数：**
 - `AutoStartLifecycledObject()` - 默认构造函数（供子类继承使用）
 - `explicit AutoStartLifecycledObject(std::function<void(std::stop_token)> run_func)` - Lambda 构造函数
 - `~AutoStartLifecycledObject()` - 析构函数

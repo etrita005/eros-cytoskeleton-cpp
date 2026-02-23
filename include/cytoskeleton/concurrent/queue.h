@@ -2,6 +2,7 @@
 
 #include <condition_variable>
 #include <functional>
+#include <memory>
 #include <queue>
 #include <vector>
 
@@ -16,6 +17,8 @@ namespace concurrent {
 template <typename T>
 class Queue {
  public:
+  using Ptr = std::shared_ptr<Queue<T>>;
+
   Queue() = default;
   ~Queue() = default;
 

@@ -2,6 +2,7 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "cytoskeleton/concurrent/mutex.h"
@@ -14,6 +15,8 @@ namespace concurrent {
 
 class Tree {
  public:
+  using Ptr = std::shared_ptr<Tree>;
+
   Tree() = default;
   ~Tree() = default;
 

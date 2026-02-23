@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <stop_token>
 #include <string>
 #include <thread>
@@ -14,6 +15,8 @@ namespace concurrent {
 
 class Thread {
  public:
+  using Ptr = std::shared_ptr<Thread>;
+
   explicit Thread(const std::string& name) : name_(name) {}
 
   Thread(const std::string& name,

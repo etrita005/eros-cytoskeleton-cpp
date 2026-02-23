@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -16,6 +17,8 @@ namespace concurrent {
 template <typename K, typename V>
 class Map {
  public:
+  using Ptr = std::shared_ptr<Map<K, V>>;
+
   Map() = default;
   ~Map() = default;
 

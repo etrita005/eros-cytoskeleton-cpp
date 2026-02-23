@@ -72,11 +72,32 @@ class MyService : public AutoStartLifecycledObject {
 };
 
 int main() {
-  auto service = MyService::Create<MyService>();
+  // 使用 Ptr 类型别名创建对象
+  MyService::Ptr service = MyService::Create<MyService>();
   std::this_thread::sleep_for(std::chrono::seconds(3));
   service->Stop();
   return 0;
 }
+```
+
+### 智能指针类型别名 (Ptr)
+
+所有类都提供 `Ptr` 类型别名，简化智能指针使用：
+
+```cpp
+#include "cytoskeleton/concurrent/vector.h"
+#include "cytoskeleton/object/object.h"
+
+using namespace com::etrita::eros::cytos;
+
+// Concurrent 模块
+concurrent::Vector<int>::Ptr vec = std::make_shared<concurrent::Vector<int>>();
+concurrent::Queue<std::string>::Ptr queue = std::make_shared<concurrent::Queue<std::string>>();
+concurrent::Thread::Ptr thread = std::make_shared<concurrent::Thread>("worker");
+
+// Object 模块
+object::Object::Ptr obj = std::make_shared<object::Object>();
+object::LifecycledObject::Ptr service = std::make_shared<object::LifecycledObject>();
 ```
 
 ## 项目结构

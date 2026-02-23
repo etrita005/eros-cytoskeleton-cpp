@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -16,6 +17,8 @@ namespace concurrent {
 template <typename K, typename V>
 class HashMap {
  public:
+  using Ptr = std::shared_ptr<HashMap<K, V>>;
+
   HashMap() = default;
   ~HashMap() = default;
 

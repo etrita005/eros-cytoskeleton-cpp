@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <vector>
 
 #include "cytoskeleton/concurrent/mutex.h"
@@ -14,6 +15,8 @@ namespace concurrent {
 template <typename T>
 class Vector {
  public:
+  using Ptr = std::shared_ptr<Vector<T>>;
+
   Vector() = default;
   ~Vector() = default;
 

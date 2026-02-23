@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <mutex>
 #include <shared_mutex>
 
@@ -11,6 +12,8 @@ namespace concurrent {
 
 class Mutex {
  public:
+  using Ptr = std::shared_ptr<Mutex>;
+
   Mutex() = default;
   ~Mutex() = default;
 
@@ -29,6 +32,8 @@ class Mutex {
 
 class ReadWriteMutex {
  public:
+  using Ptr = std::shared_ptr<ReadWriteMutex>;
+
   ReadWriteMutex() = default;
   ~ReadWriteMutex() = default;
 
@@ -50,6 +55,8 @@ class ReadWriteMutex {
 
 class MutexLock {
  public:
+  using Ptr = std::shared_ptr<MutexLock>;
+
   explicit MutexLock(Mutex& mutex) : mutex_(mutex) { mutex_.Lock(); }
   ~MutexLock() { mutex_.Unlock(); }
 
@@ -64,6 +71,8 @@ class MutexLock {
 
 class ReadLock {
  public:
+  using Ptr = std::shared_ptr<ReadLock>;
+
   explicit ReadLock(ReadWriteMutex& mutex) : mutex_(mutex) { mutex_.LockRead(); }
   ~ReadLock() { mutex_.UnlockRead(); }
 
@@ -78,6 +87,8 @@ class ReadLock {
 
 class WriteLock {
  public:
+  using Ptr = std::shared_ptr<WriteLock>;
+
   explicit WriteLock(ReadWriteMutex& mutex) : mutex_(mutex) {
     mutex_.LockWrite();
   }

@@ -13,6 +13,8 @@ namespace object {
 
 class Object : public std::enable_shared_from_this<Object> {
  public:
+  using Ptr = std::shared_ptr<Object>;
+
   Object() = default;
   virtual ~Object() = default;
 

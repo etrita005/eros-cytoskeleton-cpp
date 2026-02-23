@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <stack>
 #include <vector>
 
@@ -15,6 +16,8 @@ namespace concurrent {
 template <typename T>
 class Stack {
  public:
+  using Ptr = std::shared_ptr<Stack<T>>;
+
   Stack() = default;
   ~Stack() = default;
 

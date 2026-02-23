@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <memory>
 
 #include "cytoskeleton/concurrent/mutex.h"
 #include "cytoskeleton/object/object.h"
@@ -15,6 +16,8 @@ namespace object {
 
 class LifecycledObject : public Object {
  public:
+  using Ptr = std::shared_ptr<LifecycledObject>;
+
   enum class State {
     kUninitialized,
     kInitializing,
