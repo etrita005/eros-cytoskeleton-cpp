@@ -1,12 +1,11 @@
 #pragma once
 
-#include <condition_variable>
+#include <atomic>
+#include <boost/asio.hpp>
 #include <functional>
 #include <future>
 #include <memory>
-#include <mutex>
-#include <queue>
-#include <stop_token>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -20,13 +19,10 @@ class ThreadPool {
  public:
   using Ptr = std::shared_ptr<ThreadPool>;
 
-  explicit ThreadPool(size_t pool_size) : stop_(false) {
-    for (size_t i = 0; i < pool_size; ++i) {
-      workers_.emplace_back([this](std::stop_token stop_token) {
-        WorkerLoop(stop_token);
-      });
-    }
-  }
+  explicit ThreadPool(size_t pool_size)
+      : pool_(static_cast<int>(pool_size)),
+        work_guard_(boost::asio::make_work_guard(pool_)),
+        stopped_(false) {}
 
   ~ThreadPool() { Shutdown(); }
 
@@ -40,66 +36,51 @@ class ThreadPool {
       -> std::future<decltype(f(args...))> {
     using ReturnType = decltype(f(args...));
 
-    auto task = std::make_shared<std::packaged_task<ReturnType()>>(
-        std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-
-    std::future<ReturnType> result = task->get_future();
-
-    {
-      std::unique_lock<std::mutex> lock(queue_mutex_);
-      if (stop_) {
-        throw std::runtime_error("Cannot submit task to stopped ThreadPool");
-      }
-      tasks_.emplace([task]() { (*task)(); });
+    if (stopped_.load()) {
+      throw std::runtime_error("Cannot submit task to stopped ThreadPool");
     }
 
-    condition_.notify_one();
+    auto promise = std::make_shared<std::promise<ReturnType>>();
+    std::future<ReturnType> result = promise->get_future();
+
+    boost::asio::post(pool_,
+                      [promise, func = std::bind(std::forward<F>(f),
+                                                  std::forward<Args>(args)...)]() mutable {
+                        try {
+                          if constexpr (std::is_void_v<ReturnType>) {
+                            func();
+                            promise->set_value();
+                          } else {
+                            promise->set_value(func());
+                          }
+                        } catch (...) {
+                          promise->set_exception(std::current_exception());
+                        }
+                      });
+
     return result;
   }
 
   void Shutdown() {
-    {
-      std::unique_lock<std::mutex> lock(queue_mutex_);
-      stop_ = true;
+    if (stopped_.exchange(true)) {
+      return;
     }
-
-    condition_.notify_all();
-
-    for (std::jthread& worker : workers_) {
-      if (worker.joinable()) {
-        worker.join();
-      }
+    if (work_guard_) {
+      work_guard_.reset();
     }
+    pool_.join();
   }
+
+  void Wait() { pool_.wait(); }
+
+  bool IsRunning() const { return !stopped_.load(); }
 
  private:
-  void WorkerLoop(std::stop_token stop_token) {
-    while (!stop_token.stop_requested()) {
-      std::function<void()> task;
-
-      {
-        std::unique_lock<std::mutex> lock(queue_mutex_);
-        condition_.wait(lock, [this, &stop_token] {
-          return stop_ || !tasks_.empty() || stop_token.stop_requested();
-        });
-
-        if ((stop_ && tasks_.empty()) || stop_token.stop_requested()) {
-          return;
-        }
-
-        task = std::move(tasks_.front());
-        tasks_.pop();
-      }
-
-      task();
-    }
-  }
-
-  std::vector<std::jthread> workers_;
-  std::queue<std::function<void()>> tasks_;
-  std::mutex queue_mutex_;
-  std::condition_variable condition_;
-  bool stop_;
+  boost::asio::thread_pool pool_;
+  std::optional<boost::asio::executor_work_guard<
+      boost::asio::thread_pool::executor_type>>
+      work_guard_;
+  std::atomic<bool> stopped_;
 };
 
 }  // namespace concurrent
