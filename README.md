@@ -1,42 +1,42 @@
-# Cytoskeleton Concurrent Module
+# Cytoskeleton C++ 基础库
 
-Header-only concurrent library for robot applications and service development.
+Cytoskeleton 是一个面向机器人应用与服务开发的 C++20 基础库，提供并发控制、对象生命周期管理、数据结构等核心功能。
 
-## Design Philosophy
+## 设计哲学
 
-### Core Principles
+### 核心原则
 
-1. **Header-Only Design**: All implementations in headers for easy integration
-2. **Modern C++20**: Leverages `std::jthread`, `std::stop_token`, and other C++20 features
-3. **Thread Safety First**: All containers are thread-safe by design
-4. **RAII Pattern**: Resource management through constructors/destructors
-5. **Minimal Overhead**: Thin wrappers around standard library primitives
+1. **安全性 > 易用性 > 性能**
+   - 面向机器人应用，可靠性优先
+   - 不面向高性能计算场景
 
-### Architecture
+2. **Header-Only 设计**
+   - 所有实现都在头文件中
+   - 便于集成和部署
 
-```
-com::etrita::eros::cytos::concurrent
-├── Synchronization Primitives
-│   ├── Mutex (recursive)
-│   ├── ReadWriteMutex
-│   ├── AutoResetEvent
-│   └── ManualResetEvent
-├── Threading
-│   ├── Thread (jthread wrapper)
-│   └── ThreadPool
-└── Containers
-    ├── Vector
-    ├── List
-    ├── Queue
-    ├── Stack
-    ├── Map
-    ├── HashMap
-    └── Tree
-```
+3. **现代 C++20**
+   - 充分利用 `std::jthread`、`std::stop_token`、concepts 等特性
+   - 遵循 Google C++ Style Guide
 
-## Usage
+4. **模块化架构**
+   - 各模块独立，可单独使用
+   - 清晰的依赖关系
 
-### Bazel Integration
+## 模块概览
+
+| 模块 | 说明 | 状态 |
+|------|------|------|
+| [concurrent](include/cytoskeleton/concurrent/README.md) | 并发控制：线程、锁、事件、线程安全容器 | ✅ 已完成 |
+| [object](include/cytoskeleton/object/README.md) | 对象基础：生命周期管理、单例模式 | ✅ 已完成 |
+
+## 快速开始
+
+### 环境要求
+
+- C++20 兼容编译器 (GCC 11+, Clang 14+, MSVC 2022+)
+- Bazel 7.0+
+
+### Bazel 集成
 
 ```python
 # MODULE.bazel
@@ -46,108 +46,118 @@ bazel_dep(name = "cytoskeleton", version = "0.1.0")
 cc_binary(
     name = "my_app",
     srcs = ["main.cpp"],
-    deps = ["@cytoskeleton//include/cytoskeleton/concurrent:concurrent"],
+    deps = [
+        "@cytoskeleton//include/cytoskeleton/concurrent",
+        "@cytoskeleton//include/cytoskeleton/object",
+    ],
 )
 ```
 
-### Include
+### 示例代码
 
 ```cpp
-#include "cytoskeleton/concurrent/concurrent.h"
+#include "cytoskeleton/object/auto_start_lifecycled_object.h"
+#include <iostream>
 
-using namespace com::etrita::eros::cytos::concurrent;
+using namespace com::etrita::eros::cytos::object;
+
+class MyService : public AutoStartLifecycledObject {
+ protected:
+  void Run(std::stop_token stop_token) override {
+    while (!stop_token.stop_requested()) {
+      std::cout << "Service running..." << std::endl;
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+  }
+};
+
+int main() {
+  auto service = MyService::Create<MyService>();
+  std::this_thread::sleep_for(std::chrono::seconds(3));
+  service->Stop();
+  return 0;
+}
 ```
 
-## Components
+## 项目结构
 
-### 1. Mutex & Synchronization
+```
+cytoskeleton-cpp/
+├── include/cytoskeleton/          # 头文件目录
+│   ├── concurrent/                # 并发模块
+│   │   ├── README.md
+│   │   ├── concurrent.h           # 统一包含头
+│   │   ├── mutex.h
+│   │   ├── event.h
+│   │   ├── thread.h
+│   │   ├── thread_pool.h
+│   │   └── ...
+│   └── object/                    # 对象模块
+│       ├── README.md
+│       ├── object.h               # Object 基类
+│       ├── lifecycled_object.h    # 生命周期对象
+│       ├── auto_start_lifecycled_object.h
+│       └── singleton.h            # 单例模板
+├── examples/                      # 示例代码
+│   ├── concurrent/                # 并发模块示例
+│   └── object/                    # 对象模块示例
+├── tests/                         # 单元测试
+│   ├── concurrent/
+│   └── object/
+├── docs/                          # 文档
+│   └── architecture/              # 架构设计文档
+├── MODULE.bazel                   # Bazel 模块定义
+├── BUILD.bazel                    # 根构建文件
+└── README.md                      # 本文档
+```
 
-- **Mutex**: Recursive mutex wrapper
-- **ReadWriteMutex**: Shared/exclusive lock
-- **MutexLock/ReadLock/WriteLock**: RAII guards
+## 命名空间
 
-### 2. Events
+所有组件位于统一命名空间下：
 
-- **AutoResetEvent**: Auto-reset after wait, `Notify()` to signal
-- **ManualResetEvent**: Manual reset required, `Notify()` to signal
+```cpp
+com::etrita::eros::cytos::concurrent  // 并发模块
+com::etrita::eros::cytos::object      // 对象模块
+```
 
-Event API:
-- `Notify()`: Signal the event
-- `Reset()`: Reset the event state
-- `Join()`: Wait for event (blocking)
-- `Join(timeout)`: Wait with timeout
-- `IsNotified()`: Check if event is signaled
+## 测试
 
-### 3. Containers
-
-All containers provide:
-- Thread-safe operations
-- `ForEach()` iteration
-- `Filter()` and `Slice()` operations
-- Move semantics support
-
-### 4. Threading
-
-- **Thread**: `std::jthread` wrapper with stop token support
-- **ThreadPool**: Fixed-size thread pool with task submission
-
-## Examples
-
-See [examples/concurrent/](examples/concurrent/) for usage examples:
-
-| Example | Description |
-|---------|-------------|
-| `mutex_example.cpp` | Mutex and lock guards usage |
-| `event_example.cpp` | Event synchronization |
-| `vector_example.cpp` | Thread-safe vector |
-| `map_example.cpp` | Thread-safe ordered map |
-| `hash_map_example.cpp` | Thread-safe hash map |
-| `queue_example.cpp` | Producer-consumer queue |
-| `list_example.cpp` | Thread-safe list |
-| `stack_example.cpp` | Thread-safe stack |
-| `tree_example.cpp` | Thread-safe property tree |
-| `thread_example.cpp` | Thread lifecycle management |
-| `thread_pool_example.cpp` | Thread pool task submission |
-
-## Notes
-
-1. **Thread Safety**: All methods are thread-safe unless documented otherwise
-2. **Deadlock Prevention**: Mutex is recursive to prevent self-deadlock
-3. **Exception Safety**: Operations are exception-safe
-4. **Move Semantics**: All containers support move-only types
-5. **Stop Tokens**: Thread and ThreadPool support C++20 stop tokens
-
-## Testing
-
-### Run Tests
+### 运行所有测试
 
 ```bash
-# Run all tests
-bazel test //tests/concurrent:concurrent_test
+# 运行所有测试
+bazel test //tests/...
 
-# Run with verbose output
-bazel test //tests/concurrent:concurrent_test --test_output=all
+# 运行特定模块测试
+bazel test //tests/concurrent:all
+bazel test //tests/object:all
 
-# Run specific test suite
-bazel test //tests/concurrent:concurrent_test --test_filter=MutexTest.*
+# 详细输出
+bazel test //tests/... --test_output=all
 ```
 
-### Coverage Report
+### 测试状态
 
-```bash
-# Generate coverage report (header-only library, coverage measured via template instantiation)
-bazel coverage //tests/concurrent:concurrent_test --combined_report=lcov
+| 模块 | 测试数 | 状态 |
+|------|--------|------|
+| concurrent | 133 | ✅ 通过 |
+| object | 43 | ✅ 通过 |
 
-# View coverage report location
-cat bazel-out/_coverage/_coverage_report.dat
-```
+## 文档
 
-### Test Report
+- [Concurrent 模块文档](include/cytoskeleton/concurrent/README.md)
+- [Object 模块文档](include/cytoskeleton/object/README.md)
+- [架构设计文档](docs/architecture/)
 
-See [test_report.md](test_report.md) for detailed test results.
+## 贡献
 
-Current status: **133 tests passed**
+欢迎提交 Issue 和 Pull Request。
 
-## License
+## 许可证
 
 MIT License
+
+## 联系方式
+
+- 项目主页: https://github.com/etrita/cytoskeleton
+- 问题反馈: https://github.com/etrita/cytoskeleton/issues

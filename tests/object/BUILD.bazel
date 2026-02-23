@@ -1,0 +1,43 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_test(
+    name = "object_test",
+    srcs = ["object_test.cpp"],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/object",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "singleton_test",
+    srcs = ["singleton_test.cpp"],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/object",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "lifecycled_object_test",
+    srcs = ["lifecycled_object_test.cpp"],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/object",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "auto_start_lifecycled_object_test",
+    srcs = ["auto_start_lifecycled_object_test.cpp"],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/object",
+        "@googletest//:gtest_main",
+    ],
+)

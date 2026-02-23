@@ -1,0 +1,19 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "object",
+    hdrs = [
+        "object.h",
+        "singleton.h",
+        "lifecycled_object.h",
+        "auto_start_lifecycled_object.h",
+    ],
+    includes = ["../.."],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/concurrent",
+    ],
+    visibility = ["//visibility:public"],
+)

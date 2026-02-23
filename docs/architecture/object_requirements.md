@@ -34,7 +34,7 @@ C++20
 
 `Object` 类作为所有高层对象的基类，提供以下核心功能：
 - 内置 `Mutex` 用于对象级同步
-- 内置 `ManualResetEvent` 用于对象通知机制
+- 内置 `AutoResetEvent` 用于对象通知机制
 - 提供 `GetSharedPtr()` 方法获取指向自身的 `std::shared_ptr`
 
 **实现说明：**
@@ -48,12 +48,11 @@ C++20
 - `virtual ~Object()` - 虚析构函数
 - `std::shared_ptr<Object> GetSharedPtr()` - 获取指向自身的 shared_ptr
 - `std::shared_ptr<const Object> GetSharedPtr() const` - 获取 const shared_ptr
-- `void Wait()` - 等待对象通知（阻塞）
-- `bool Wait(std::chrono::milliseconds timeout)` - 等待对象通知（带超时）
+- `void Join()` - 等待对象通知（阻塞），参考 Concurrent Event 命名
+- `bool Join(std::chrono::milliseconds timeout)` - 等待对象通知（带超时）
 - `void Notify()` - 通知所有等待者
 - `void ResetNotify()` - 重置通知状态
 - `concurrent::Mutex& GetMutex()` - 获取对象级 Mutex
-- `concurrent::ManualResetEvent& GetEvent()` - 获取对象级 Event
 
 **保护方法（供子类使用）：**
 - `void Lock()` - 加锁
@@ -80,7 +79,7 @@ auto obj = std::make_shared<MyObject>();
 std::shared_ptr<Object> ptr = obj->GetSharedPtr();
 
 // 等待通知
-obj->Wait();
+obj->Join();
 
 // 通知对象
 obj->Notify();
@@ -149,6 +148,13 @@ Uninitialized -> Initializing -> Initialized -> Starting -> Running -> Stopping 
 - 使用内置 Mutex 保护状态机
 - 防止重复调用（幂等性检查）
 
+**析构处理：**
+- 析构时自动调用 `Destroy()` 进行清理
+- 为避免析构中调用虚函数的问题，采用以下方案：
+  - `Destroy()` 为非虚方法，内部调用受保护的虚方法 `OnDestroy()`
+  - 析构函数中直接调用 `Destroy()`，此时对象类型仍为最派生类型（析构函数体执行期间）
+  - 确保在子类析构函数执行前完成资源清理
+
 ### 4.2 API
 
 **枚举：**
@@ -164,11 +170,11 @@ Uninitialized -> Initializing -> Initialized -> Starting -> Running -> Stopping 
 
 **公共方法：**
 - `LifecycledObject()` - 构造函数
-- `~LifecycledObject()` - 析构函数
-- `bool Initialize()` - 初始化
-- `bool Start()` - 启动
-- `bool Stop()` - 停止
-- `bool Destroy()` - 销毁
+- `~LifecycledObject()` - 析构函数（自动调用 Destroy）
+- `bool Initialize()` - 初始化（非虚，内部调用 OnInitialize）
+- `bool Start()` - 启动（非虚，内部调用 OnStart）
+- `bool Stop()` - 停止（非虚，内部调用 OnStop）
+- `bool Destroy()` - 销毁（非虚，内部调用 OnDestroy）
 - `State GetState() const` - 获取当前状态
 - `bool IsUninitialized() const` - 是否未初始化
 - `bool IsInitialized() const` - 是否已初始化
@@ -220,7 +226,7 @@ if (service->Initialize()) {
     // 服务运行中
     service->Stop();
   }
-  service->Destroy();
+  // Destroy 会在析构时自动调用，也可显式调用
 }
 ```
 
@@ -238,22 +244,45 @@ if (service->Initialize()) {
 - 支持重复启动/停止
 - 线程函数自动处理 `std::stop_token`
 
+**Lambda 构造方式注意事项：**
+- 使用 Lambda 构造时，内部不立即启动线程
+- 线程在 `Start()` 被调用时才启动，此时对象已完全构造
+- Lambda 中应使用 `shared_from_this()` 获取 shared_ptr，避免直接捕获 `this`
+- 提供工厂方法创建，确保对象通过 shared_ptr 管理后再启动
+
+**生命周期方法设计：**
+- `Initialize()`、`Start()`、`Stop()`、`Destroy()` 均为非虚方法
+- 内部调用受保护的虚方法 `OnInitialize()`、`OnStart()`、`OnStop()`、`OnDestroy()`
+- 避免在构造/析构中调用虚函数的问题
+
 ### 5.2 API
 
 - `AutoStartLifecycledObject()` - 默认构造函数（供子类继承使用）
 - `explicit AutoStartLifecycledObject(std::function<void(std::stop_token)> run_func)` - Lambda 构造函数
 - `~AutoStartLifecycledObject()` - 析构函数
 
+**工厂方法（推荐）：**
+- `template<typename T, typename... Args> static std::shared_ptr<T> Create(Args&&... args)` - 创建对象并返回 shared_ptr
+
 **保护方法（供子类重写）：**
 - `virtual void Run(std::stop_token stop_token)` - 线程入口
+- `virtual bool OnInitialize()` - 初始化回调
+- `virtual bool OnStart()` - 启动回调（内部启动线程）
+- `virtual bool OnStop()` - 停止回调（内部停止线程）
+- `virtual bool OnDestroy()` - 销毁回调
 
 ### 5.3 使用示例
 
-**方式 1 - 子类继承：**
+**方式 1 - 子类继承（推荐）：**
 ```cpp
 class Worker : public AutoStartLifecycledObject {
  public:
   Worker() = default;
+
+  // 工厂方法创建
+  static std::shared_ptr<Worker> Create() {
+    return std::make_shared<Worker>();
+  }
 
  protected:
   void Run(std::stop_token stop_token) override {
@@ -264,20 +293,20 @@ class Worker : public AutoStartLifecycledObject {
   }
 };
 
-auto worker = std::make_shared<Worker>();
+auto worker = Worker::Create();
 worker->Initialize();
 worker->Start();  // 自动启动线程执行 Run()
 // ...
 worker->Stop();   // 请求停止并等待线程结束
-worker->Destroy();
+// Destroy 在析构时自动调用
 ```
 
-**方式 2 - Lambda：**
+**方式 2 - Lambda（使用工厂方法）：**
 ```cpp
-auto worker = std::make_shared<AutoStartLifecycledObject>(
-    [](std::stop_token stop_token) {
+auto worker = AutoStartLifecycledObject::CreateWithLambda(
+    [](std::stop_token stop_token, std::shared_ptr<AutoStartLifecycledObject> self) {
       while (!stop_token.stop_requested()) {
-        // 执行任务
+        // 执行任务，通过 self 访问对象成员
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
     });
@@ -286,71 +315,48 @@ worker->Initialize();
 worker->Start();
 // ...
 worker->Stop();
-worker->Destroy();
+// Destroy 在析构时自动调用
 ```
 
 ---
 
-## 6. Concurrent 模块 Event API 修改
-
-### 6.1 修改说明
-
-为了与 Object 模块的 `Notify()` 方法命名保持一致，需要将 Concurrent 模块中 Event 类的相关 API 从 `Set()` 修改为 `Notify()`。
-
-### 6.2 修改范围
-
-**头文件：** `include/cytoskeleton/concurrent/event.h`
-
-**修改内容：**
-- `void Set()` -> `void Notify()`
-- `bool IsSet() const` -> `bool IsNotified() const`
-
-**影响：**
-- 所有使用 `Event::Set()` 的代码需要修改为 `Event::Notify()`
-- 文档、测试用例、示例代码同步更新
-
-### 6.3 修改后 API
-
-- `void Notify()` - 设置事件为有信号状态（原 Set）
-- `bool IsNotified() const` - 查询当前状态（原 IsSet）
-
----
-
-## 7. 依赖
+## 6. 依赖
 
 - C++20 标准库
 - `concurrent` 模块（Mutex, ManualResetEvent, Thread）
 
 ---
 
-## 8. 测试要求
+## 7. 测试要求
 
-### 8.1 Object 类测试
+### 7.1 Object 类测试
 - 测试 `GetSharedPtr()` 正确返回 shared_ptr
-- 测试 `Wait()` / `Notify()` / `ResetNotify()` 基本功能
+- 测试 `Join()` / `Notify()` / `ResetNotify()` 基本功能
 - 测试多线程环境下的通知机制
 - 测试内置 Mutex 的同步功能
 
-### 8.2 Singleton 测试
+### 7.2 Singleton 测试
 - 测试单例实例的唯一性
 - 测试多线程环境下的线程安全创建
 - 测试单例生命周期管理
 
-### 8.3 LifecycledObject 测试
+### 7.3 LifecycledObject 测试
 - 测试状态机转换的正确性
 - 测试重复调用的幂等性
 - 测试多线程环境下的状态安全
 - 测试重复启动/停止功能
+- 测试析构时自动调用 Destroy
 
-### 8.4 AutoStartLifecycledObject 测试
+### 7.4 AutoStartLifecycledObject 测试
 - 测试自动启动线程功能
 - 测试 `Stop()` 正确停止线程
 - 测试重复启动/停止功能
 - 测试析构时自动清理线程
+- 测试 Lambda 构造方式下 this 捕获安全性
 
 ---
 
-## 9. 文件结构
+## 8. 文件结构
 
 ```
 include/cytoskeleton/object/
