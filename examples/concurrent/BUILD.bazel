@@ -81,3 +81,21 @@ cc_binary(
     copts = ["-std=c++20"],
     deps = ["//include/cytoskeleton/concurrent:concurrent"],
 )
+
+# 编译所有示例
+filegroup(
+    name = "all",
+    srcs = [
+        ":mutex_example",
+        ":event_example",
+        ":vector_example",
+        ":map_example",
+        ":hash_map_example",
+        ":queue_example",
+        ":list_example",
+        ":stack_example",
+        ":tree_example",
+        ":thread_example",
+        ":thread_pool_example",
+    ],
+)

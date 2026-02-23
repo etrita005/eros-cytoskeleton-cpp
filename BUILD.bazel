@@ -1,3 +1,47 @@
 package(default_visibility = ["//visibility:public"])
 
 exports_files(["LICENSE", "README.md"])
+
+# 编译所有库目标
+filegroup(
+    name = "libs",
+    srcs = [
+        "//include/cytoskeleton/concurrent",
+        "//include/cytoskeleton/object",
+    ],
+)
+
+# 编译所有示例
+filegroup(
+    name = "examples",
+    srcs = [
+        "//examples/concurrent:all",
+    ],
+)
+
+# 编译所有目标（库 + 示例）
+filegroup(
+    name = "all",
+    srcs = [
+        ":libs",
+        ":examples",
+    ],
+)
+
+# 运行所有测试
+test_suite(
+    name = "tests",
+    tests = [
+        "//tests/concurrent:concurrent_test",
+        "//tests/object:object_test",
+        "//tests/object:singleton_test",
+        "//tests/object:lifecycled_object_test",
+        "//tests/object:auto_start_lifecycled_object_test",
+    ],
+)
+
+# 测试所有目标（别名）
+alias(
+    name = "test-all",
+    actual = ":tests",
+)
