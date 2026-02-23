@@ -55,7 +55,22 @@ cc_binary(
 )
 ```
 
-### 示例代码
+### 编译项目
+
+```bash
+# 编译所有目标
+bazel build //:all
+
+# 编译特定模块
+bazel build //include/cytoskeleton/concurrent:all
+bazel build //include/cytoskeleton/object:all
+bazel build //include/cytoskeleton/itc/message_queue:all
+
+# 编译示例程序
+bazel build //examples/...
+```
+
+### 运行示例
 
 各模块的示例代码位于 `examples/` 目录下：
 
@@ -89,7 +104,7 @@ cytoskeleton-cpp/
 │           ├── message.h
 │           ├── handler.h
 │           ├── looper.h
-│           └── itc_message_queue.h
+│           └── mq.h
 ├── examples/                      # 示例代码
 │   ├── concurrent/
 │   ├── object/
