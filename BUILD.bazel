@@ -8,6 +8,7 @@ filegroup(
     srcs = [
         "//include/cytoskeleton/concurrent",
         "//include/cytoskeleton/object",
+        "//include/cytoskeleton/itc/message_queue",
     ],
 )
 
@@ -16,6 +17,7 @@ filegroup(
     name = "examples",
     srcs = [
         "//examples/concurrent:all",
+        "//examples/itc/message_queue:basic_example",
     ],
 )
 
@@ -37,6 +39,7 @@ test_suite(
         "//tests/object:singleton_test",
         "//tests/object:lifecycled_object_test",
         "//tests/object:auto_start_lifecycled_object_test",
+        "//tests/itc/message_queue:message_queue_test",
     ],
 )
 

@@ -1,6 +1,6 @@
 # Cytoskeleton C++ 基础库
 
-Cytoskeleton 是一个面向机器人应用与服务开发的 C++20 基础库，提供并发控制、对象生命周期管理、数据结构等核心功能。
+Cytoskeleton 是一个面向机器人应用与服务开发的 C++20 基础库，提供并发控制、对象生命周期管理、消息队列、数据结构等核心功能。
 
 ## 设计哲学
 
@@ -28,6 +28,7 @@ Cytoskeleton 是一个面向机器人应用与服务开发的 C++20 基础库，
 |------|------|------|
 | [concurrent](include/cytoskeleton/concurrent/README.md) | 并发控制：线程、锁、事件、线程安全容器 | ✅ 已完成 |
 | [object](include/cytoskeleton/object/README.md) | 对象基础：生命周期管理、单例模式 | ✅ 已完成 |
+| [itc/message_queue](include/cytoskeleton/itc/message_queue/) | 消息队列：基于消息的异步通信机制 | ✅ 已完成 |
 
 ## 快速开始
 
@@ -49,55 +50,21 @@ cc_binary(
     deps = [
         "@cytoskeleton//include/cytoskeleton/concurrent",
         "@cytoskeleton//include/cytoskeleton/object",
+        "@cytoskeleton//include/cytoskeleton/itc/message_queue",
     ],
 )
 ```
 
 ### 示例代码
 
-```cpp
-#include "cytoskeleton/object/auto_start_lifecycled_object.h"
-#include <iostream>
+各模块的示例代码位于 `examples/` 目录下：
 
-using namespace com::etrita::eros::cytos::object;
+```bash
+# 查看所有示例
+ls examples/
 
-class MyService : public AutoStartLifecycledObject {
- protected:
-  void Run(std::stop_token stop_token) override {
-    while (!stop_token.stop_requested()) {
-      std::cout << "Service running..." << std::endl;
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
-};
-
-int main() {
-  // 使用 Ptr 类型别名创建对象
-  MyService::Ptr service = MyService::Create<MyService>();
-  std::this_thread::sleep_for(std::chrono::seconds(3));
-  service->Stop();
-  return 0;
-}
-```
-
-### 智能指针类型别名 (Ptr)
-
-所有类都提供 `Ptr` 类型别名，简化智能指针使用：
-
-```cpp
-#include "cytoskeleton/concurrent/vector.h"
-#include "cytoskeleton/object/object.h"
-
-using namespace com::etrita::eros::cytos;
-
-// Concurrent 模块
-concurrent::Vector<int>::Ptr vec = std::make_shared<concurrent::Vector<int>>();
-concurrent::Queue<std::string>::Ptr queue = std::make_shared<concurrent::Queue<std::string>>();
-concurrent::Thread::Ptr thread = std::make_shared<concurrent::Thread>("worker");
-
-// Object 模块
-object::Object::Ptr obj = std::make_shared<object::Object>();
-object::LifecycledObject::Ptr service = std::make_shared<object::LifecycledObject>();
+# 运行消息队列示例
+bazel run //examples/itc/message_queue:basic_example
 ```
 
 ## 项目结构
@@ -111,22 +78,28 @@ cytoskeleton-cpp/
 │   │   ├── mutex.h
 │   │   ├── event.h
 │   │   ├── thread.h
-│   │   ├── thread_pool.h
-│   │   └── ...
-│   └── object/                    # 对象模块
-│       ├── README.md
-│       ├── object.h               # Object 基类
-│       ├── lifecycled_object.h    # 生命周期对象
-│       ├── auto_start_lifecycled_object.h
-│       └── singleton.h            # 单例模板
+│   │   └── thread_pool.h
+│   ├── object/                    # 对象模块
+│   │   ├── README.md
+│   │   ├── object.h               # Object 基类
+│   │   ├── lifecycled_object.h    # 生命周期对象
+│   │   └── singleton.h            # 单例模板
+│   └── itc/                       # 进程间通信模块
+│       └── message_queue/         # 消息队列
+│           ├── message.h
+│           ├── handler.h
+│           ├── looper.h
+│           └── itc_message_queue.h
 ├── examples/                      # 示例代码
-│   ├── concurrent/                # 并发模块示例
-│   └── object/                    # 对象模块示例
+│   ├── concurrent/
+│   ├── object/
+│   └── itc/message_queue/
 ├── tests/                         # 单元测试
 │   ├── concurrent/
-│   └── object/
+│   ├── object/
+│   └── itc/message_queue/
 ├── docs/                          # 文档
-│   └── architecture/              # 架构设计文档
+│   └── architecture/
 ├── MODULE.bazel                   # Bazel 模块定义
 ├── BUILD.bazel                    # 根构建文件
 └── README.md                      # 本文档
@@ -137,8 +110,9 @@ cytoskeleton-cpp/
 所有组件位于统一命名空间下：
 
 ```cpp
-com::etrita::eros::cytos::concurrent  // 并发模块
-com::etrita::eros::cytos::object      // 对象模块
+com::etrita::eros::cytos::concurrent       // 并发模块
+com::etrita::eros::cytos::object           // 对象模块
+com::etrita::eros::cytos::itc::message_queue  // 消息队列模块
 ```
 
 ## 测试
@@ -152,6 +126,7 @@ bazel test //tests/...
 # 运行特定模块测试
 bazel test //tests/concurrent:all
 bazel test //tests/object:all
+bazel test //tests/itc/message_queue:all
 
 # 详细输出
 bazel test //tests/... --test_output=all
@@ -163,11 +138,13 @@ bazel test //tests/... --test_output=all
 |------|--------|------|
 | concurrent | 133 | ✅ 通过 |
 | object | 43 | ✅ 通过 |
+| itc/message_queue | 35 | ✅ 通过 |
 
 ## 文档
 
 - [Concurrent 模块文档](include/cytoskeleton/concurrent/README.md)
 - [Object 模块文档](include/cytoskeleton/object/README.md)
+- [消息队列使用文档](docs/architecture/message_queue_usage.md)
 - [架构设计文档](docs/architecture/)
 
 ## 贡献
