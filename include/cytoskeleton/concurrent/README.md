@@ -258,7 +258,7 @@ class ThreadPool {
   auto Submit(F&& f, Args&&... args) -> std::future<decltype(f(args...))>;
   
   void Shutdown();      // Stop accepting new tasks, wait for completion
-  void Wait();          // Wait for all tasks to complete
+  void Join();          // Wait for all tasks to complete
   bool IsRunning() const;
 };
 ```

@@ -71,7 +71,15 @@ class ThreadPool {
     pool_.join();
   }
 
-  void Wait() { pool_.wait(); }
+  void Join() {
+    if (stopped_.load()) {
+      return;
+    }
+    if (work_guard_) {
+      work_guard_.reset();
+    }
+    pool_.join();
+  }
 
   bool IsRunning() const { return !stopped_.load(); }
 
