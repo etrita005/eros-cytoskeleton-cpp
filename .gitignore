@@ -28,3 +28,10 @@ coverage/
 # Temporary files
 *.tmp
 *.log
+
+# Clangd cache
+.cache/
+
+# Compile commands (generated)
+compile_commands.json
+generate_compile_commands.py

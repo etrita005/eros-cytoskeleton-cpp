@@ -9,6 +9,7 @@ filegroup(
         "//include/cytoskeleton/concurrent",
         "//include/cytoskeleton/object",
         "//include/cytoskeleton/itc/message_queue",
+        "//include/cytoskeleton/module",
     ],
 )
 
@@ -18,6 +19,7 @@ filegroup(
     srcs = [
         "//examples/concurrent:all",
         "//examples/itc/message_queue:basic_example",
+        "//examples/module:loader_example",
     ],
 )
 
@@ -40,6 +42,7 @@ test_suite(
         "//tests/object:lifecycled_object_test",
         "//tests/object:auto_start_lifecycled_object_test",
         "//tests/itc/message_queue:message_queue_test",
+        "//tests/module:module_test",
     ],
 )
 

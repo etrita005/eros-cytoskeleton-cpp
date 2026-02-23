@@ -1,0 +1,33 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# 示例动态库模块 - 使用cc_binary with linkshared来创建.so文件
+cc_binary(
+    name = "libsample_module.so",
+    srcs = ["sample_module.cpp"],
+    copts = ["-std=c++20", "-fPIC"],
+    deps = [
+        "//include/cytoskeleton/module",
+    ],
+    linkshared = 1,
+    linkstatic = 0,
+)
+
+# Loader示例程序
+cc_binary(
+    name = "loader_example",
+    srcs = ["loader_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/module",
+    ],
+    data = [
+        ":libsample_module.so",
+    ],
+)
+
+exports_files([
+    "loader_example.cpp",
+    "sample_module.cpp",
+])

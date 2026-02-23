@@ -1,0 +1,16 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_test(
+    name = "module_test",
+    srcs = [
+        "module_test.cpp",
+    ],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/module",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

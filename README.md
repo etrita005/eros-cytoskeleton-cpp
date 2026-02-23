@@ -30,7 +30,7 @@ Cytoskeleton 是一个面向机器人应用与服务开发的 C++20 基础库，
 | [concurrent](include/cytoskeleton/concurrent/README.md) | 并发控制：线程、锁、事件、线程安全容器 | ✅ 是 | ✅ 已完成 |
 | [object](include/cytoskeleton/object/README.md) | 对象基础：生命周期管理、单例模式 | ✅ 是 | ✅ 已完成 |
 | [itc/message_queue](include/cytoskeleton/itc/message_queue/) | 消息队列：基于消息的异步通信机制 | ✅ 是 | ✅ 已完成 |
-| [module](documents/architecture/module_requirements.md) | 动态模块加载与管理：插件化架构、动态库加载 | ❌ 否 | 📝 设计中 |
+| [module](include/cytoskeleton/module/README.md) | 动态模块加载与管理：插件化架构、动态库加载 | ❌ 否 | ✅ 已完成 |
 
 **注意：** `module` 模块由于需要维护全局状态（动态库注册信息），不能实现为 header-only 库，需要编译为静态库或动态库。
 
@@ -67,10 +67,11 @@ cc_binary(
 # 编译所有目标
 bazel build //:all
 
-# 编译特定模块
+#### 编译特定模块
 bazel build //include/cytoskeleton/concurrent:all
 bazel build //include/cytoskeleton/object:all
 bazel build //include/cytoskeleton/itc/message_queue:all
+bazel build //include/cytoskeleton/module:all
 
 # 编译示例程序
 bazel build //examples/...
@@ -86,6 +87,9 @@ ls examples/
 
 # 运行消息队列示例
 bazel run //examples/itc/message_queue:basic_example
+
+# 运行模块加载示例
+bazel run //examples/module:loader_example
 ```
 
 ## 项目结构
@@ -171,12 +175,14 @@ bazel test //tests/... --test_output=all
 | concurrent | 133 | ✅ 通过 |
 | object | 43 | ✅ 通过 |
 | itc/message_queue | 35 | ✅ 通过 |
+| module | 6 | ✅ 通过 |
 
 ## 文档
 
 - [Concurrent 模块文档](include/cytoskeleton/concurrent/README.md)
 - [Object 模块文档](include/cytoskeleton/object/README.md)
 - [消息队列使用文档](documents/architecture/message_queue_usage.md)
+- [Module 模块文档](include/cytoskeleton/module/README.md)
 - [Module 模块需求文档](documents/architecture/module_requirements.md)
 - [架构设计文档](documents/architecture/)
 

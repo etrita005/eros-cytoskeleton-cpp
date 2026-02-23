@@ -1,0 +1,22 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "module",
+    srcs = ["//src/module:stub.cc"],
+    hdrs = [
+        "manifest.h",
+        "stub.h",
+        "loader.h",
+    ],
+    includes = ["../.."],
+    copts = ["-std=c++20"],
+    deps = [
+        "//include/cytoskeleton/concurrent",
+        "//include/cytoskeleton/object",
+        "@boost.property_tree//:boost.property_tree",
+    ],
+    linkopts = ["-ldl"],
+    visibility = ["//visibility:public"],
+)
