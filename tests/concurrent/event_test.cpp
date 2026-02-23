@@ -7,15 +7,15 @@
 
 using namespace com::etrita::eros::cytos::concurrent;
 
-TEST(ManualResetEventTest, BasicSetReset) {
+TEST(ManualResetEventTest, BasicNotifyReset) {
   ManualResetEvent event(false);
-  EXPECT_FALSE(event.IsSet());
+  EXPECT_FALSE(event.IsNotified());
 
-  event.Set();
-  EXPECT_TRUE(event.IsSet());
+  event.Notify();
+  EXPECT_TRUE(event.IsNotified());
 
   event.Reset();
-  EXPECT_FALSE(event.IsSet());
+  EXPECT_FALSE(event.IsNotified());
 }
 
 TEST(ManualResetEventTest, Join) {
@@ -23,11 +23,11 @@ TEST(ManualResetEventTest, Join) {
 
   std::thread t([&]() {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    event.Set();
+    event.Notify();
   });
 
   event.Join();
-  EXPECT_TRUE(event.IsSet());
+  EXPECT_TRUE(event.IsNotified());
 
   t.join();
 }
@@ -37,12 +37,12 @@ TEST(ManualResetEventTest, JoinWithTimeoutSuccess) {
 
   std::thread t([&]() {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    event.Set();
+    event.Notify();
   });
 
   bool result = event.Join(std::chrono::milliseconds(500));
   EXPECT_TRUE(result);
-  EXPECT_TRUE(event.IsSet());
+  EXPECT_TRUE(event.IsNotified());
 
   t.join();
 }
@@ -52,38 +52,38 @@ TEST(ManualResetEventTest, JoinWithTimeoutFailure) {
 
   bool result = event.Join(std::chrono::milliseconds(50));
   EXPECT_FALSE(result);
-  EXPECT_FALSE(event.IsSet());
+  EXPECT_FALSE(event.IsNotified());
 }
 
 TEST(ManualResetEventTest, MultipleWaits) {
   ManualResetEvent event(false);
 
-  event.Set();
+  event.Notify();
 
   EXPECT_TRUE(event.Join(std::chrono::milliseconds(10)));
   EXPECT_TRUE(event.Join(std::chrono::milliseconds(10)));
-  EXPECT_TRUE(event.IsSet());
+  EXPECT_TRUE(event.IsNotified());
 }
 
-TEST(AutoResetEventTest, BasicSetReset) {
+TEST(AutoResetEventTest, BasicNotifyReset) {
   AutoResetEvent event(false);
-  EXPECT_FALSE(event.IsSet());
+  EXPECT_FALSE(event.IsNotified());
 
-  event.Set();
-  EXPECT_TRUE(event.IsSet());
+  event.Notify();
+  EXPECT_TRUE(event.IsNotified());
 
   event.Reset();
-  EXPECT_FALSE(event.IsSet());
+  EXPECT_FALSE(event.IsNotified());
 }
 
 TEST(AutoResetEventTest, AutoReset) {
   AutoResetEvent event(false);
 
-  event.Set();
-  EXPECT_TRUE(event.IsSet());
+  event.Notify();
+  EXPECT_TRUE(event.IsNotified());
 
   event.Join();
-  EXPECT_FALSE(event.IsSet());
+  EXPECT_FALSE(event.IsNotified());
 }
 
 TEST(AutoResetEventTest, JoinWithTimeoutSuccess) {
@@ -91,12 +91,12 @@ TEST(AutoResetEventTest, JoinWithTimeoutSuccess) {
 
   std::thread t([&]() {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    event.Set();
+    event.Notify();
   });
 
   bool result = event.Join(std::chrono::milliseconds(500));
   EXPECT_TRUE(result);
-  EXPECT_FALSE(event.IsSet());
+  EXPECT_FALSE(event.IsNotified());
 
   t.join();
 }
@@ -106,7 +106,7 @@ TEST(AutoResetEventTest, JoinWithTimeoutFailure) {
 
   bool result = event.Join(std::chrono::milliseconds(50));
   EXPECT_FALSE(result);
-  EXPECT_FALSE(event.IsSet());
+  EXPECT_FALSE(event.IsNotified());
 }
 
 TEST(AutoResetEventTest, MultipleSignals) {
@@ -123,7 +123,7 @@ TEST(AutoResetEventTest, MultipleSignals) {
   std::thread t2([&]() {
     for (int i = 0; i < 3; ++i) {
       std::this_thread::sleep_for(std::chrono::milliseconds(20));
-      event.Set();
+      event.Notify();
     }
   });
 
@@ -135,12 +135,12 @@ TEST(AutoResetEventTest, MultipleSignals) {
 
 TEST(ManualResetEventTest, InitialStateTrue) {
   ManualResetEvent event(true);
-  EXPECT_TRUE(event.IsSet());
+  EXPECT_TRUE(event.IsNotified());
 }
 
 TEST(AutoResetEventTest, InitialStateTrue) {
   AutoResetEvent event(true);
-  EXPECT_TRUE(event.IsSet());
+  EXPECT_TRUE(event.IsNotified());
 }
 
 TEST(ManualResetEventTest, SpuriousWakeup) {
@@ -153,7 +153,7 @@ TEST(ManualResetEventTest, SpuriousWakeup) {
   });
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  event.Set();
+  event.Notify();
 
   t.join();
   EXPECT_TRUE(done);

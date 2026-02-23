@@ -68,8 +68,15 @@ using namespace com::etrita::eros::cytos::concurrent;
 
 ### 2. Events
 
-- **AutoResetEvent**: Auto-reset after wait
-- **ManualResetEvent**: Manual reset required
+- **AutoResetEvent**: Auto-reset after wait, `Notify()` to signal
+- **ManualResetEvent**: Manual reset required, `Notify()` to signal
+
+Event API:
+- `Notify()`: Signal the event
+- `Reset()`: Reset the event state
+- `Join()`: Wait for event (blocking)
+- `Join(timeout)`: Wait with timeout
+- `IsNotified()`: Check if event is signaled
 
 ### 3. Containers
 

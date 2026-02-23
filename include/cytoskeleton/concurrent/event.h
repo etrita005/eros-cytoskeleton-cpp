@@ -21,7 +21,7 @@ class Event {
   Event(Event&&) = delete;
   Event& operator=(Event&&) = delete;
 
-  void Set() {
+  void Notify() {
     {
       std::lock_guard<std::mutex> lock(mutex_);
       signaled_ = true;
@@ -42,7 +42,7 @@ class Event {
                         [this] { return signaled_.load(); });
   }
 
-  bool IsSet() const { return signaled_.load(); }
+  bool IsNotified() const { return signaled_.load(); }
 
  protected:
   std::atomic<bool> signaled_;
