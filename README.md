@@ -11,8 +11,9 @@ Cytoskeleton 是一个面向机器人应用与服务开发的 C++20 基础库，
    - 不面向高性能计算场景
 
 2. **Header-Only 设计**
-   - 所有实现都在头文件中
+   - 大部分模块的实现都在头文件中
    - 便于集成和部署
+   - **例外**：`module` 模块由于需要维护全局状态（动态库注册信息），需要编译为静态库或动态库
 
 3. **现代 C++20**
    - 充分利用 `std::jthread`、`std::stop_token`、concepts 等特性
@@ -24,11 +25,14 @@ Cytoskeleton 是一个面向机器人应用与服务开发的 C++20 基础库，
 
 ## 模块概览
 
-| 模块 | 说明 | 状态 |
-|------|------|------|
-| [concurrent](include/cytoskeleton/concurrent/README.md) | 并发控制：线程、锁、事件、线程安全容器 | ✅ 已完成 |
-| [object](include/cytoskeleton/object/README.md) | 对象基础：生命周期管理、单例模式 | ✅ 已完成 |
-| [itc/message_queue](include/cytoskeleton/itc/message_queue/) | 消息队列：基于消息的异步通信机制 | ✅ 已完成 |
+| 模块 | 说明 | Header-Only | 状态 |
+|------|------|-------------|------|
+| [concurrent](include/cytoskeleton/concurrent/README.md) | 并发控制：线程、锁、事件、线程安全容器 | ✅ 是 | ✅ 已完成 |
+| [object](include/cytoskeleton/object/README.md) | 对象基础：生命周期管理、单例模式 | ✅ 是 | ✅ 已完成 |
+| [itc/message_queue](include/cytoskeleton/itc/message_queue/) | 消息队列：基于消息的异步通信机制 | ✅ 是 | ✅ 已完成 |
+| [module](documents/architecture/module_requirements.md) | 动态模块加载与管理：插件化架构、动态库加载 | ❌ 否 | 📝 设计中 |
+
+**注意：** `module` 模块由于需要维护全局状态（动态库注册信息），不能实现为 header-only 库，需要编译为静态库或动态库。
 
 ## 快速开始
 
@@ -51,6 +55,8 @@ cc_binary(
         "@cytoskeleton//include/cytoskeleton/concurrent",
         "@cytoskeleton//include/cytoskeleton/object",
         "@cytoskeleton//include/cytoskeleton/itc/message_queue",
+        # 注意：module 模块需要编译链接，不是 header-only
+        "@cytoskeleton//cytoskeleton/module",
     ],
 )
 ```
@@ -99,22 +105,32 @@ cytoskeleton-cpp/
 │   │   ├── object.h               # Object 基类
 │   │   ├── lifecycled_object.h    # 生命周期对象
 │   │   └── singleton.h            # 单例模板
-│   └── itc/                       # 进程间通信模块
-│       └── message_queue/         # 消息队列
-│           ├── message.h
-│           ├── handler.h
-│           ├── looper.h
-│           └── mq.h
+│   ├── itc/                       # 进程间通信模块
+│   │   └── message_queue/         # 消息队列
+│   │       ├── message.h
+│   │       ├── handler.h
+│   │       ├── looper.h
+│   │       └── mq.h
+│   └── module/                    # 动态模块加载模块 (非 header-only)
+│       ├── loader.h               # Loader 类定义
+│       ├── stub.h                 # 注册宏定义
+│       └── manifest.h             # 数据结构定义
+├── src/module/                    # module 模块源码（需要编译）
+│   ├── loader.cc                  # Loader 实现
+│   └── stub.cc                    # RegisterModule 等函数实现
 ├── examples/                      # 示例代码
 │   ├── concurrent/
 │   ├── object/
-│   └── itc/message_queue/
+│   ├── itc/message_queue/
+│   └── module/                    # module 模块示例
 ├── tests/                         # 单元测试
 │   ├── concurrent/
 │   ├── object/
-│   └── itc/message_queue/
-├── docs/                          # 文档
+│   ├── itc/message_queue/
+│   └── module/                    # module 模块测试
+├── documents/                     # 文档
 │   └── architecture/
+│       └── module_requirements.md # module 模块需求文档
 ├── MODULE.bazel                   # Bazel 模块定义
 ├── BUILD.bazel                    # 根构建文件
 └── README.md                      # 本文档
@@ -128,6 +144,7 @@ cytoskeleton-cpp/
 com::etrita::eros::cytos::concurrent       // 并发模块
 com::etrita::eros::cytos::object           // 对象模块
 com::etrita::eros::cytos::itc::message_queue  // 消息队列模块
+com::etrita::eros::cytos::module           // 动态模块加载模块
 ```
 
 ## 测试
@@ -159,8 +176,9 @@ bazel test //tests/... --test_output=all
 
 - [Concurrent 模块文档](include/cytoskeleton/concurrent/README.md)
 - [Object 模块文档](include/cytoskeleton/object/README.md)
-- [消息队列使用文档](docs/architecture/message_queue_usage.md)
-- [架构设计文档](docs/architecture/)
+- [消息队列使用文档](documents/architecture/message_queue_usage.md)
+- [Module 模块需求文档](documents/architecture/module_requirements.md)
+- [架构设计文档](documents/architecture/)
 
 ## 贡献
 
