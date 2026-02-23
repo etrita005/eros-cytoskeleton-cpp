@@ -1,6 +1,7 @@
 # Bazel output directories
 bazel-*
 .bazelrc.user
+MODULE.bazel.lock
 
 # C++ build artifacts
 *.o
