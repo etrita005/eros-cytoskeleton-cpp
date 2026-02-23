@@ -2,11 +2,30 @@
 
 #include <atomic>
 #include <chrono>
+#include <fstream>
 #include <thread>
 
 #include "cytoskeleton/concurrent/thread.h"
 
 using namespace com::etrita::eros::cytos::concurrent;
+
+// Helper function to get current thread name from OS (Linux only)
+#ifdef __linux__
+std::string GetCurrentThreadName() {
+  std::ifstream comm_file("/proc/thread-self/comm");
+  if (!comm_file.is_open()) {
+    // Fallback to syscall
+    char name[16];
+    if (pthread_getname_np(pthread_self(), name, sizeof(name)) == 0) {
+      return std::string(name);
+    }
+    return "";
+  }
+  std::string name;
+  std::getline(comm_file, name);
+  return name;
+}
+#endif
 
 TEST(ThreadTest, LambdaThread) {
   std::atomic<int> counter{0};
@@ -98,6 +117,44 @@ TEST(ThreadTest, GetName) {
   Thread thread("my_thread_name", [](std::stop_token) {});
   EXPECT_EQ(thread.GetName(), "my_thread_name");
 }
+
+#ifdef __linux__
+TEST(ThreadTest, NativeThreadName) {
+  std::string observed_name;
+
+  {
+    Thread thread("NativeTest", [&observed_name](std::stop_token stop_token) {
+      // Give some time for the name to be set
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      observed_name = GetCurrentThreadName();
+    });
+
+    thread.Start();
+    thread.Join();
+  }
+
+  // Linux thread names are limited to 15 characters + null
+  EXPECT_EQ(observed_name, "NativeTest");
+}
+
+TEST(ThreadTest, NativeThreadNameTruncated) {
+  std::string observed_name;
+  std::string long_name = "VeryLongThreadNameThatExceedsLimit";
+
+  {
+    Thread thread(long_name, [&observed_name](std::stop_token stop_token) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      observed_name = GetCurrentThreadName();
+    });
+
+    thread.Start();
+    thread.Join();
+  }
+
+  // Should be truncated to 15 characters on Linux
+  EXPECT_EQ(observed_name, long_name.substr(0, 15));
+}
+#endif
 
 TEST(ThreadTest, ShouldStop) {
   std::atomic<bool> should_stop_observed{false};

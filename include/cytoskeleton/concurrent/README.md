@@ -192,26 +192,33 @@ event->Reset();    // Must manually reset
 
 #### Thread
 
-`std::jthread` wrapper with stop token support.
+`std::jthread` wrapper with stop token support. Thread name is automatically set at OS level for debugging.
 
 ```cpp
 class Thread {
  public:
   using Ptr = std::shared_ptr<Thread>;
-  
+
   explicit Thread(const std::string& name);
   Thread(const std::string& name, std::function<void(std::stop_token)> func);
-  
-  void Start();           // Start the thread
+
+  void Start();           // Start the thread (sets OS-level thread name)
   void Join();            // Wait for completion
   bool Join(std::chrono::milliseconds timeout);
   void RequestStop();     // Request graceful stop
   bool ShouldStop() const;
   std::string GetName() const;
-  
+
   virtual void Run(std::stop_token stop_token);  // Override for custom logic
 };
 ```
+
+**Thread Name Limits:**
+| Platform | Max Length | Notes |
+|----------|------------|-------|
+| Linux    | 15 chars   | Truncated automatically |
+| Windows  | 64 chars   | Requires Windows 10 1607+ |
+| macOS    | 64 chars   | - |
 
 **Usage:**
 ```cpp
