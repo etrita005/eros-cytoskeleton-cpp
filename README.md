@@ -64,7 +64,7 @@ cc_binary(
 ### 编译项目
 
 ```bash
-# 编译所有目标（本地动态链接）
+# 编译所有目标
 bazel build //:all
 
 # 编译特定模块
@@ -83,6 +83,22 @@ bazel build //tests/...
 ### 交叉编译（ARM64）
 
 项目支持 ARM64 交叉编译，使用动态链接方式。对于 glibc 版本不兼容的目标机，可以通过 `LD_LIBRARY_PATH` 指定自定义 glibc 路径。
+
+#### 交叉编译全部目标
+
+```bash
+# 交叉编译所有目标（示例、测试、模块库）
+bazel build --config=arm64 //:all
+
+# 编译所有示例
+bazel build --config=arm64 //examples/...
+
+# 编译所有测试
+bazel build --config=arm64 //tests/...
+
+# 编译所有模块库
+bazel build --config=arm64 //include/cytoskeleton/module:all
+```
 
 #### 安装交叉编译工具链
 
@@ -108,31 +124,28 @@ aarch64-linux-gnu-g++ -std=c++20 -dM -E - < /dev/null | grep __cplusplus
 aarch64-linux-gnu-g++ -std=c++20 -E -xc++ - </dev/null >/dev/null 2>&1 && echo "C++20 supported" || echo "C++20 NOT supported"
 ```
 
-#### 交叉编译所有示例
-
-```bash
-# 编译所有示例（动态链接）
-bazel build --config=arm64 //examples/...
-
-# 编译所有测试（动态链接）
-bazel build --config=arm64 //tests/...
-```
-
 #### 部署到目标机（使用自定义 glibc）
 
-如果目标机的 glibc 版本较低（如 Ubuntu 18.04 的 glibc 2.27），可以将宿主机的高版本 glibc 复制到目标机，通过 `LD_LIBRARY_PATH` 指定：
+如果目标机的 glibc 版本较低（如 Ubuntu 18.04 的 glibc 2.27），可以将宿主机的高版本 glibc 和其他依赖的动态库复制到目标机，通过 `LD_LIBRARY_PATH` 指定：
 
 **步骤 1：在宿主机上编译**
 ```bash
-bazel build --config=arm64 //examples/...
+bazel build --config=arm64 //:all
 ```
 
-**步骤 2：复制 glibc 到目标机**
-```bash
-# 在目标机上创建目录
-ssh developer@10.2.9.185 "mkdir -p ~/glibc-2.39"
+**步骤 2：复制系统动态库到目标机**
 
-# 复制 glibc 库文件
+需要复制以下类型的动态库到目标机：
+- **glibc 库**：libc.so.6、libm.so.6、libpthread.so.0、libdl.so.2、librt.so.1、ld-linux-aarch64.so.1
+- **编译器运行时库**：libstdc++.so.6、libgcc_s.so.1
+- **Bazel 生成的共享库**：编译过程中生成的 `_solib_aarch64` 目录下的库文件
+- **其他动态库**：如 `*.so` 文件
+
+```bash
+# 在目标机上创建目录（<target-host> 替换为目标机地址，<user> 替换为用户名）
+ssh <user>@<target-host> "mkdir -p ~/eros-libs"
+
+# 复制系统 glibc 和编译器库
 scp /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 \
     /usr/aarch64-linux-gnu/lib/libc.so.6 \
     /usr/aarch64-linux-gnu/lib/libm.so.6 \
@@ -141,35 +154,34 @@ scp /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 \
     /usr/aarch64-linux-gnu/lib/librt.so.1 \
     /usr/lib/aarch64-linux-gnu/libstdc++.so.6 \
     /usr/lib/aarch64-linux-gnu/libgcc_s.so.1 \
-    developer@10.2.9.185:~/glibc-2.39/
+    <user>@<target-host>:~/eros-libs/
 ```
 
-**步骤 3：复制程序到目标机**
+**步骤 3：复制程序和 Bazel 生成的共享库到目标机**
 ```bash
-scp bazel-bin/examples/concurrent/*_example developer@10.2.9.185:~/eros-examples/
-scp bazel-bin/examples/module/* developer@10.2.9.185:~/eros-examples/module/
+# 创建目标目录
+ssh <user>@<target-host> "mkdir -p ~/eros-examples"
+
+# 复制示例程序
+scp bazel-bin/examples/concurrent/*_example <user>@<target-host>:~/eros-examples/
+scp bazel-bin/examples/object/*_example <user>@<target-host>:~/eros-examples/
+scp bazel-bin/examples/itc/message_queue/*_example <user>@<target-host>:~/eros-examples/
+scp bazel-bin/examples/module/loader_example <user>@<target-host>:~/eros-examples/
+
+# 复制 Bazel 生成的共享库（_solib_aarch64 目录）
+scp -r bazel-bin/examples/module/_solib_aarch64 <user>@<target-host>:~/eros-libs/
+
+# 复制其他动态库（如有）
+scp bazel-bin/examples/module/*.so <user>@<target-host>:~/eros-libs/
 ```
 
 **步骤 4：在目标机上运行（使用自定义 glibc）**
 ```bash
-# 使用自定义 glibc 运行程序
-LD_LIBRARY_PATH=~/glibc-2.39 \
-~/glibc-2.39/ld-linux-aarch64.so.1 \
---library-path ~/glibc-2.39 \
-./mutex_example
+# 设置库路径（包括系统库、Bazel 生成的共享库和其他动态库）
+export LD_LIBRARY_PATH="$HOME/eros-libs:$HOME/eros-libs/_solib_aarch64"
 
-# 或者创建启动脚本
-cat > run_with_glibc.sh << 'EOF'
-#!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GLIBC_DIR="${SCRIPT_DIR}/glibc-2.39"
-export LD_LIBRARY_PATH="${GLIBC_DIR}:${LD_LIBRARY_PATH}"
-"${GLIBC_DIR}/ld-linux-aarch64.so.1" --library-path "${GLIBC_DIR}" "$@"
-EOF
-chmod +x run_with_glibc.sh
-
-# 使用脚本运行
-./run_with_glibc.sh ./mutex_example
+# 使用 LD_LIBRARY_PATH 运行程序（通过自定义 glibc 加载器）
+$HOME/eros-libs/ld-linux-aarch64.so.1 $HOME/eros-examples/mutex_example
 ```
 
 ### 运行示例
@@ -313,22 +325,22 @@ bazel test //tests/... --test_output=all
 
 ### 远程测试
 
-交叉编译的示例程序已成功部署到 Ubuntu 18.04 ARM64 目标机并全部通过测试：
+交叉编译的示例程序可以部署到 ARM64 目标机进行测试。例如部署到 Ubuntu 18.04 ARM64 目标机：
 
 ```bash
-# 部署到远程机器
-scp bazel-bin/examples/concurrent/*_example developer@10.2.9.185:~/eros-examples/
-scp bazel-bin/examples/module/* developer@10.2.9.185:~/eros-examples/module/
+# 部署到远程机器（<user>@<target-host> 替换为实际的目标机地址）
+scp bazel-bin/examples/concurrent/*_example <user>@<target-host>:~/eros-examples/
+scp bazel-bin/examples/module/* <user>@<target-host>:~/eros-libs/
 
 # 远程运行测试（使用自定义 glibc）
-ssh developer@10.2.9.185 "cd ~/eros-examples && LD_LIBRARY_PATH=~/glibc-2.39 ~/glibc-2.39/ld-linux-aarch64.so.1 --library-path ~/glibc-2.39 ./mutex_example"
+ssh <user>@<target-host> "cd ~/eros-examples && LD_LIBRARY_PATH=~/eros-libs ~/eros-libs/ld-linux-aarch64.so.1 ./mutex_example"
 ```
 
-**已测试示例（17个全部通过）**：
+**可测试的示例包括**：
 - Concurrent: mutex_example, event_example, vector_example, map_example, hash_map_example, queue_example, list_example, stack_example, thread_example, thread_pool_example, tree_example
 - ITC: basic_example
 - Object: object_basic_example, lifecycled_object_example, auto_start_example, singleton_example
-- Module: loader_example (with libsample_module.so)
+- Module: loader_example
 
 ## 文档
 
