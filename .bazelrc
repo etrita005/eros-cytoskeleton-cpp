@@ -6,10 +6,17 @@ build:arm64 --crosstool_top=//toolchain:toolchain
 build:arm64 --cpu=aarch64
 build:arm64 --compiler=gcc
 
-# Static linking for deployment to older glibc systems
+# Static linking for deployment to older glibc systems (Ubuntu 18.04 with glibc 2.27)
+# Only apply to cc_binary targets, not cc_library
 build:arm64 --linkopt=-static
 build:arm64 --linkopt=-static-libgcc
 build:arm64 --linkopt=-static-libstdc++
+# Disable building shared libraries to avoid libc.a issues
+build:arm64 --dynamic_mode=off
+# Ensure global constructors are called in static linking
+build:arm64 --linkopt=-Wl,--whole-archive
+build:arm64 --linkopt=-lpthread
+build:arm64 --linkopt=-Wl,--no-whole-archive
 
 # ARM64 native compilation (dynamic linking for local testing)
 build:native --platforms=//toolchain:linux_arm64

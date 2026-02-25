@@ -13,8 +13,15 @@ namespace module {
 
 using object::Object;
 
-static Manifest __manifest__;
-static std::vector<Module> __modules__;
+static Manifest* GetManifestInstance() {
+  static Manifest* manifest = new Manifest();
+  return manifest;
+}
+
+static std::vector<Module>* GetModulesInstance() {
+  static std::vector<Module>* modules = new std::vector<Module>();
+  return modules;
+}
 
 extern "C" void RegisterModule(
     const std::string& name, const std::string& version,
@@ -22,8 +29,8 @@ extern "C" void RegisterModule(
     const std::string& author, const std::vector<std::string>& dependencies,
     Object* (*creator)(), void (*deleter)(Object*)) {
   ModuleInfo info{name, version, category, description, author, dependencies, {}};
-  __manifest__.modules[name] = info;
-  __modules__.push_back(Module{info, creator, deleter});
+  GetManifestInstance()->modules[name] = info;
+  GetModulesInstance()->push_back(Module{info, creator, deleter});
 }
 
 static std::string SerializeToJson(const Manifest& manifest) {
@@ -63,15 +70,19 @@ static std::string SerializeToJson(const Manifest& manifest) {
 }
 
 extern "C" const char* GetManifest() {
-  static thread_local std::string json_str;
-  json_str = SerializeToJson(__manifest__);
-  return json_str.c_str();
+  // Use a static pointer to avoid thread_local issues with static linking
+  static std::string* json_str = nullptr;
+  if (!json_str) {
+    json_str = new std::string();
+  }
+  *json_str = SerializeToJson(*GetManifestInstance());
+  return json_str->c_str();
 }
 
 extern "C" void GetModuleCreator(const char* module_name,
                                   Object* (**creator)(),
                                   void (**deleter)(Object*)) {
-  for (const auto& module : __modules__) {
+  for (const auto& module : *GetModulesInstance()) {
     if (module.info.name == module_name) {
       *creator = module.creator;
       *deleter = module.deleter;
