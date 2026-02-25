@@ -1,10 +1,11 @@
 # Bazel configuration for cross-compilation
 
-# ARM64 cross-compilation configuration (default: dynamic linking)
+# ARM64 cross-compilation configuration (dynamic linking)
 build:arm64 --platforms=//toolchain:linux_arm64
 build:arm64 --crosstool_top=//toolchain:toolchain
 build:arm64 --cpu=aarch64
 build:arm64 --compiler=gcc
+# Dynamic linking - requires copying glibc and other libs to target system
 
 # ARM64 native compilation (for local testing)
 build:native --platforms=//toolchain:linux_arm64
