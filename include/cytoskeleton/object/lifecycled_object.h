@@ -1,8 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <chrono>
-#include <functional>
 #include <memory>
 
 #include "cytoskeleton/concurrent/mutex.h"
@@ -37,6 +35,12 @@ class LifecycleObject : public Object {
       Destroy();
     }
   }
+
+  // Rule of Five: Explicitly define or delete copy/move operations
+  LifecycleObject(const LifecycleObject&) = delete;
+  LifecycleObject& operator=(const LifecycleObject&) = delete;
+  LifecycleObject(LifecycleObject&&) = delete;
+  LifecycleObject& operator=(LifecycleObject&&) = delete;
 
   bool Initialize() {
     concurrent::MutexLock lock(GetMutex());

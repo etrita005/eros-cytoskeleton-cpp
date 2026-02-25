@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <concepts>
 #include <functional>
 #include <memory>
@@ -64,7 +63,7 @@ class AutoStartLifecycleObject : public LifecycleObject {
  protected:
   virtual void Run(std::stop_token stop_token) {
     if (run_func_) {
-      run_func_(stop_token);
+      run_func_(std::move(stop_token));
     }
   }
 
