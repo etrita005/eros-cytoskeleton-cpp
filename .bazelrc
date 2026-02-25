@@ -1,0 +1,38 @@
+# Bazel configuration for cross-compilation
+
+# ARM64 cross-compilation configuration (static linking for deployment)
+build:arm64 --platforms=//toolchain:linux_arm64
+build:arm64 --crosstool_top=//toolchain:toolchain
+build:arm64 --cpu=aarch64
+build:arm64 --compiler=gcc
+
+# Static linking for deployment to older glibc systems
+build:arm64 --linkopt=-static
+build:arm64 --linkopt=-static-libgcc
+build:arm64 --linkopt=-static-libstdc++
+
+# ARM64 native compilation (dynamic linking for local testing)
+build:native --platforms=//toolchain:linux_arm64
+build:native --crosstool_top=//toolchain:toolchain
+build:native --cpu=aarch64
+build:native --compiler=gcc
+
+# Enable CC toolchain resolution
+build --incompatible_enable_cc_toolchain_resolution
+
+# Default build settings
+build --cxxopt=-std=c++20
+build --host_cxxopt=-std=c++20
+
+# Release build settings
+build:release --compilation_mode=opt
+build:release --copt=-O2
+build:release --copt=-DNDEBUG
+
+# Debug build settings
+build:debug --compilation_mode=dbg
+build:debug --copt=-g
+
+# Test settings
+test --test_output=errors
+test --test_verbose_timeout_warnings

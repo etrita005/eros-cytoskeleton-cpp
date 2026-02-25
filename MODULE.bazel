@@ -8,6 +8,13 @@ bazel_dep(name = "rules_cc", version = "0.2.14")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "boost.property_tree", version = "1.87.0")
 bazel_dep(name = "boost.asio", version = "1.87.0")
+bazel_dep(name = "platforms", version = "1.0.0")
+
+# Register custom toolchains for cross-compilation
+register_toolchains(
+    "//toolchain:cc-toolchain-arm64-linux",
+    "//toolchain:cc-toolchain-x86_64-linux",
+)
 
 # Hedron's Compile Commands Extractor for Bazel
 # https://github.com/hedronvision/bazel-compile-commands-extractor

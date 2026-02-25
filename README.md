@@ -64,10 +64,10 @@ cc_binary(
 ### 编译项目
 
 ```bash
-# 编译所有目标
+# 编译所有目标（本地动态链接）
 bazel build //:all
 
-#### 编译特定模块
+# 编译特定模块
 bazel build //include/cytoskeleton/concurrent:all
 bazel build //include/cytoskeleton/object:all
 bazel build //include/cytoskeleton/itc/message_queue:all
@@ -75,7 +75,69 @@ bazel build //include/cytoskeleton/module:all
 
 # 编译示例程序
 bazel build //examples/...
+
+# 编译测试程序
+bazel build //tests/...
 ```
+
+### 交叉编译（ARM64）
+
+项目支持 ARM64 交叉编译，使用完全静态链接以兼容不同版本的 glibc。
+
+#### 安装交叉编译工具链
+
+在 Ubuntu/Debian 系统上安装 ARM64 交叉编译工具链：
+
+```bash
+# 安装交叉编译器（要求 GCC 11+ 以支持 C++20）
+sudo apt-get update
+sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+# 验证安装和版本（需要支持 -std=c++20）
+aarch64-linux-gnu-g++ --version
+aarch64-linux-gnu-g++ -std=c++20 -dM -E - < /dev/null | grep __cplusplus
+```
+
+**版本要求**：
+- GCC 11+ （推荐 GCC 13+）
+- 必须支持 C++20 标准（`-std=c++20` 或 `-std=gnu++20`）
+
+**验证 C++20 支持**：
+```bash
+# 检查是否支持 C++20
+aarch64-linux-gnu-g++ -std=c++20 -E -xc++ - </dev/null >/dev/null 2>&1 && echo "C++20 supported" || echo "C++20 NOT supported"
+```
+
+#### 交叉编译所有示例
+
+```bash
+# 编译所有示例（BCR 的 boost 库支持静态链接）
+bazel build --config=arm64 //examples/concurrent:mutex_example
+bazel build --config=arm64 //examples/concurrent:event_example
+bazel build --config=arm64 //examples/concurrent:vector_example
+bazel build --config=arm64 //examples/concurrent:map_example
+bazel build --config=arm64 //examples/concurrent:hash_map_example
+bazel build --config=arm64 //examples/concurrent:queue_example
+bazel build --config=arm64 //examples/concurrent:list_example
+bazel build --config=arm64 //examples/concurrent:stack_example
+bazel build --config=arm64 //examples/concurrent:thread_example
+bazel build --config=arm64 //examples/concurrent:thread_pool_example
+bazel build --config=arm64 //examples/concurrent:tree_example
+bazel build --config=arm64 //examples/itc/message_queue:basic_example
+bazel build --config=arm64 //examples/object:object_basic_example
+bazel build --config=arm64 //examples/object:lifecycled_object_example
+bazel build --config=arm64 //examples/object:auto_start_example
+bazel build --config=arm64 //examples/object:singleton_example
+
+# 或者使用脚本批量编译
+for target in mutex_example event_example vector_example map_example hash_map_example queue_example list_example stack_example thread_example thread_pool_example tree_example; do
+    bazel build --config=arm64 //examples/concurrent:$target
+done
+```
+
+**注意**：
+1. 静态链接与共享库（.so）不兼容，因此 `--config=arm64` 只能用于构建可执行文件，不能用于构建共享库
+2. BCR (Bazel Central Registry) 中的 boost 库默认提供静态库（.a），可以与 `-static` 选项一起使用
 
 ### 运行示例
 
@@ -90,6 +152,14 @@ bazel run //examples/itc/message_queue:basic_example
 
 # 运行模块加载示例
 bazel run //examples/module:loader_example
+
+# 运行并发示例
+bazel run //examples/concurrent:mutex_example
+bazel run //examples/concurrent:thread_example
+
+# 运行对象示例
+bazel run //examples/object:singleton_example
+bazel run //examples/object:lifecycled_object_example
 ```
 
 ## 项目结构
@@ -122,22 +192,51 @@ cytoskeleton-cpp/
 ├── src/module/                    # module 模块源码（需要编译）
 │   ├── loader.cc                  # Loader 实现
 │   └── stub.cc                    # RegisterModule 等函数实现
+├── toolchain/                     # Bazel 交叉编译工具链配置
+│   ├── BUILD.bazel                # 工具链定义
+│   └── cc_toolchain_config.bzl    # 工具链配置规则
 ├── examples/                      # 示例代码
-│   ├── concurrent/
-│   ├── object/
-│   ├── itc/message_queue/
+│   ├── concurrent/                # 并发示例（10个）
+│   ├── object/                    # 对象示例（4个）
+│   ├── itc/message_queue/         # 消息队列示例（1个）
 │   └── module/                    # module 模块示例
 ├── tests/                         # 单元测试
-│   ├── concurrent/
-│   ├── object/
-│   ├── itc/message_queue/
-│   └── module/                    # module 模块测试
+│   ├── concurrent/                # 并发测试（133个）
+│   ├── object/                    # 对象测试（43个）
+│   ├── itc/message_queue/         # 消息队列测试（35个）
+│   └── module/                    # module 模块测试（6个）
 ├── documents/                     # 文档
 │   └── architecture/
 │       └── module_requirements.md # module 模块需求文档
 ├── MODULE.bazel                   # Bazel 模块定义
 ├── BUILD.bazel                    # 根构建文件
+├── .bazelrc                       # Bazel 构建配置（含交叉编译配置）
 └── README.md                      # 本文档
+```
+
+## 交叉编译工具链配置
+
+项目已配置完整的 Bazel 交叉编译工具链，支持：
+
+- **目标平台**：ARM64 (aarch64-linux-gnu)
+- **C++标准**：C++20
+- **链接方式**：完全静态链接（`-static -static-libgcc -static-libstdc++`）
+- **GLIBC兼容**：静态链接 glibc，兼容目标机的不同 glibc 版本
+
+### 工具链文件
+
+- `.bazelrc` - Bazel 构建配置文件
+- `toolchain/BUILD.bazel` - 工具链定义
+- `toolchain/cc_toolchain_config.bzl` - 工具链配置规则
+
+### 使用方法
+
+```bash
+# 静态链接编译（用于部署到目标机）
+bazel build --config=arm64 //examples/concurrent:mutex_example
+
+# 本地动态链接编译（用于本机测试）
+bazel build --config=native //examples/concurrent:mutex_example
 ```
 
 ## 命名空间
@@ -156,7 +255,7 @@ com::etrita::eros::cytos::module           // 动态模块加载模块
 ### 运行所有测试
 
 ```bash
-# 运行所有测试
+# 运行所有测试（本地）
 bazel test //tests/...
 
 # 运行特定模块测试
@@ -176,6 +275,27 @@ bazel test //tests/... --test_output=all
 | object | 43 | ✅ 通过 |
 | itc/message_queue | 35 | ✅ 通过 |
 | module | 6 | ✅ 通过 |
+
+**总计：217 个测试全部通过**
+
+### 远程测试
+
+交叉编译的示例程序已成功部署到 Ubuntu 18.04 ARM64 目标机并全部通过测试：
+
+```bash
+# 部署到远程机器
+scp bazel-bin/examples/concurrent/*_example developer@10.2.9.185:~/eros-examples/concurrent/
+scp bazel-bin/examples/object/*_example developer@10.2.9.185:~/eros-examples/object/
+scp bazel-bin/examples/itc/message_queue/basic_example developer@10.2.9.185:~/eros-examples/itc/message_queue/
+
+# 远程运行测试
+ssh developer@10.2.9.185 "cd ~/eros-examples && ./concurrent/mutex_example"
+```
+
+**已测试示例（17个全部通过）**：
+- Concurrent: mutex_example, event_example, vector_example, map_example, hash_map_example, queue_example, list_example, stack_example, thread_example, thread_pool_example, tree_example
+- ITC: basic_example
+- Object: object_basic_example, lifecycled_object_example, auto_start_example, singleton_example
 
 ## 文档
 
