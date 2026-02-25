@@ -1,10 +1,8 @@
 #pragma once
 
-#include <concepts>
 #include <functional>
 #include <memory>
 #include <stop_token>
-#include <string>
 
 #include "cytoskeleton/concurrent/thread.h"
 #include "cytoskeleton/object/lifecycled_object.h"

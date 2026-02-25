@@ -109,7 +109,7 @@ class LifecycleObject : public Object {
 
   State GetState() const { return state_.load(); }
 
-  bool IsUninitialized() const { return GetState() == State::kUninitialized; }
+  auto IsUninitialized() const -> bool { return GetState() == State::kUninitialized; }
   bool IsInitialized() const {
     State s = GetState();
     return s >= State::kInitialized && s < State::kDestroying;

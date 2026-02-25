@@ -12,7 +12,6 @@
 #include <atomic>
 #include <chrono>
 #include <iostream>
-#include <memory>
 
 #include "cytoskeleton/object/auto_start_lifecycled_object.h"
 
