@@ -485,7 +485,7 @@ Looper::StopMainLooper();
 
 - C++20 标准库
 - `concurrent` 模块（Mutex, ThreadPool, Thread, Event, List）
-- `object` 模块（Object, LifecycledObject）
+- `object` 模块（Object, LifecycleObject）
 
 ---
 

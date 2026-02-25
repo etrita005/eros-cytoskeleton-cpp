@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Etrita. All rights reserved.
 //
 // 例程名称: auto_start_example
-// 例程用途: 演示 AutoStartLifecycledObject 的自动线程管理功能
+// 例程用途: 演示 AutoStartLifecycleObject 的自动线程管理功能
 //
 // 功能说明:
 //   1. 使用继承方式创建后台工作线程
@@ -19,7 +19,7 @@
 using namespace com::etrita::eros::cytos::object;
 
 // 后台任务处理器，演示继承方式
-class BackgroundWorker : public AutoStartLifecycledObject {
+class BackgroundWorker : public AutoStartLifecycleObject {
  public:
   std::atomic<int> task_count{0};
 
@@ -46,7 +46,7 @@ class BackgroundWorker : public AutoStartLifecycledObject {
 };
 
 int main() {
-  std::cout << "=== AutoStartLifecycledObject Example ===" << std::endl;
+  std::cout << "=== AutoStartLifecycleObject Example ===" << std::endl;
 
   // 示例 1: 继承方式
   std::cout << "\n[示例 1] 继承方式创建后台线程" << std::endl;
@@ -77,7 +77,7 @@ int main() {
     std::atomic<int> counter{0};
 
     std::cout << "Creating lambda worker..." << std::endl;
-    auto worker = AutoStartLifecycledObject::Create(
+    auto worker = AutoStartLifecycleObject::Create(
         [&counter](std::stop_token stop_token) {
           std::cout << "[LambdaWorker] Thread started" << std::endl;
 
@@ -115,7 +115,7 @@ int main() {
   {
     std::atomic<int> total_count{0};
 
-    auto worker = AutoStartLifecycledObject::Create(
+    auto worker = AutoStartLifecycleObject::Create(
         [&total_count](std::stop_token stop_token) {
           while (!stop_token.stop_requested()) {
             ++total_count;

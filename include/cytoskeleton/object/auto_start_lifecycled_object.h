@@ -17,27 +17,27 @@ namespace cytos {
 namespace object {
 
 // Forward declaration
-class AutoStartLifecycledObject;
+class AutoStartLifecycleObject;
 
-// Concept: T must derive from AutoStartLifecycledObject
+// Concept: T must derive from AutoStartLifecycleObject
 template <typename T>
-concept DerivedFromAutoStartLifecycledObject = requires {
-  requires std::is_base_of_v<AutoStartLifecycledObject, T>;
+concept DerivedFromAutoStartLifecycleObject = requires {
+  requires std::is_base_of_v<AutoStartLifecycleObject, T>;
 };
 
-class AutoStartLifecycledObject : public LifecycledObject {
+class AutoStartLifecycleObject : public LifecycleObject {
  public:
-  using Ptr = std::shared_ptr<AutoStartLifecycledObject>;
+  using Ptr = std::shared_ptr<AutoStartLifecycleObject>;
 
-  AutoStartLifecycledObject() = default;
+  AutoStartLifecycleObject() = default;
 
-  explicit AutoStartLifecycledObject(
+  explicit AutoStartLifecycleObject(
       std::function<void(std::stop_token)> run_func)
       : run_func_(std::move(run_func)) {}
 
-  // Base class LifecycledObject destructor will call Destroy()
+  // Base class LifecycleObject destructor will call Destroy()
 
-  template <DerivedFromAutoStartLifecycledObject T, typename... Args>
+  template <DerivedFromAutoStartLifecycleObject T, typename... Args>
   static std::shared_ptr<T> Create(Args&&... args) {
     auto obj = std::make_shared<T>(std::forward<Args>(args)...);
     if (!obj->Initialize()) {
@@ -49,9 +49,9 @@ class AutoStartLifecycledObject : public LifecycledObject {
     return obj;
   }
 
-  static std::shared_ptr<AutoStartLifecycledObject> Create(
+  static std::shared_ptr<AutoStartLifecycleObject> Create(
       std::function<void(std::stop_token)> run_func) {
-    auto obj = std::make_shared<AutoStartLifecycledObject>(std::move(run_func));
+    auto obj = std::make_shared<AutoStartLifecycleObject>(std::move(run_func));
     if (!obj->Initialize()) {
       return nullptr;
     }
@@ -69,11 +69,11 @@ class AutoStartLifecycledObject : public LifecycledObject {
   }
 
   bool OnStart() override {
-    if (!LifecycledObject::OnStart()) {
+    if (!LifecycleObject::OnStart()) {
       return false;
     }
     thread_ = std::make_unique<concurrent::Thread>(
-        "AutoStartLifecycledObject",
+        "AutoStartLifecycleObject",
         [this](std::stop_token token) { Run(token); });
     thread_->Start();
     return true;
@@ -85,7 +85,7 @@ class AutoStartLifecycledObject : public LifecycledObject {
       thread_->Join();
     }
     thread_.reset();
-    return LifecycledObject::OnStop();
+    return LifecycleObject::OnStop();
   }
 
  private:

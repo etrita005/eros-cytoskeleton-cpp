@@ -48,7 +48,7 @@
 
 ### 3. lifecycled_object_test.cpp
 
-测试 LifecycledObject 生命周期管理。
+测试 LifecycleObject 生命周期管理。
 
 #### 测试用例列表
 
@@ -74,7 +74,7 @@
 
 ### 4. auto_start_lifecycled_object_test.cpp
 
-测试 AutoStartLifecycledObject 自启动生命周期对象。
+测试 AutoStartLifecycleObject 自启动生命周期对象。
 
 #### 测试用例列表
 
@@ -125,8 +125,8 @@ bazel test //tests/object:object_test --test_output=all
 
 - **Object 基类**: 通知机制、互斥锁、shared_ptr 管理
 - **Singleton 模板**: 单例唯一性、线程安全初始化
-- **LifecycledObject**: 9 状态生命周期管理、幂等性、线程安全
-- **AutoStartLifecycledObject**: 自动线程管理、工厂方法、Lambda 支持
+- **LifecycleObject**: 9 状态生命周期管理、幂等性、线程安全
+- **AutoStartLifecycleObject**: 自动线程管理、工厂方法、Lambda 支持
 
 ## 注意事项
 

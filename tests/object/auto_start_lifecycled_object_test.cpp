@@ -9,7 +9,7 @@
 
 using namespace com::etrita::eros::cytos::object;
 
-class TestAutoStartObject : public AutoStartLifecycledObject {
+class TestAutoStartObject : public AutoStartLifecycleObject {
  public:
   std::atomic<int> run_count{0};
   std::atomic<bool> should_stop{false};
@@ -23,7 +23,7 @@ class TestAutoStartObject : public AutoStartLifecycledObject {
   }
 };
 
-TEST(AutoStartLifecycledObjectTest, CreateReturnsSharedPtr) {
+TEST(AutoStartLifecycleObjectTest, CreateReturnsSharedPtr) {
   auto obj = TestAutoStartObject::Create<TestAutoStartObject>();
   EXPECT_NE(obj, nullptr);
   // Create automatically starts the object, so we need to stop it
@@ -32,8 +32,8 @@ TEST(AutoStartLifecycledObjectTest, CreateReturnsSharedPtr) {
   }
 }
 
-TEST(AutoStartLifecycledObjectTest, CreateWithLambdaReturnsSharedPtr) {
-  auto obj = AutoStartLifecycledObject::Create(
+TEST(AutoStartLifecycleObjectTest, CreateWithLambdaReturnsSharedPtr) {
+  auto obj = AutoStartLifecycleObject::Create(
       [](std::stop_token) {});
   EXPECT_NE(obj, nullptr);
   // Create automatically starts the object, so we need to stop it
@@ -42,7 +42,7 @@ TEST(AutoStartLifecycledObjectTest, CreateWithLambdaReturnsSharedPtr) {
   }
 }
 
-TEST(AutoStartLifecycledObjectTest, CreateStartsThreadAutomatically) {
+TEST(AutoStartLifecycleObjectTest, CreateStartsThreadAutomatically) {
   auto obj = TestAutoStartObject::Create<TestAutoStartObject>();
   EXPECT_NE(obj, nullptr);
   EXPECT_TRUE(obj->IsRunning());
@@ -53,7 +53,7 @@ TEST(AutoStartLifecycledObjectTest, CreateStartsThreadAutomatically) {
   obj->Stop();
 }
 
-TEST(AutoStartLifecycledObjectTest, StopStopsThread) {
+TEST(AutoStartLifecycleObjectTest, StopStopsThread) {
   auto obj = TestAutoStartObject::Create<TestAutoStartObject>();
   EXPECT_NE(obj, nullptr);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -67,7 +67,7 @@ TEST(AutoStartLifecycledObjectTest, StopStopsThread) {
   EXPECT_EQ(count_before, count_after);
 }
 
-TEST(AutoStartLifecycledObjectTest, RestartAfterStop) {
+TEST(AutoStartLifecycleObjectTest, RestartAfterStop) {
   auto obj = TestAutoStartObject::Create<TestAutoStartObject>();
   EXPECT_NE(obj, nullptr);
   std::this_thread::sleep_for(std::chrono::milliseconds(30));
@@ -82,7 +82,7 @@ TEST(AutoStartLifecycledObjectTest, RestartAfterStop) {
   obj->Stop();
 }
 
-TEST(AutoStartLifecycledObjectTest, DestructorStopsThread) {
+TEST(AutoStartLifecycleObjectTest, DestructorStopsThread) {
   std::atomic<int> run_count{0};
   auto obj = TestAutoStartObject::Create<TestAutoStartObject>();
   EXPECT_NE(obj, nullptr);
@@ -94,9 +94,9 @@ TEST(AutoStartLifecycledObjectTest, DestructorStopsThread) {
   obj->Stop();
 }
 
-TEST(AutoStartLifecycledObjectTest, LambdaFunctionExecutes) {
+TEST(AutoStartLifecycleObjectTest, LambdaFunctionExecutes) {
   std::atomic<int> counter{0};
-  auto obj = AutoStartLifecycledObject::Create(
+  auto obj = AutoStartLifecycleObject::Create(
       [&counter](std::stop_token stop_token) {
         while (!stop_token.stop_requested() && counter.load() < 5) {
           ++counter;
@@ -111,9 +111,9 @@ TEST(AutoStartLifecycledObjectTest, LambdaFunctionExecutes) {
   obj->Stop();
 }
 
-TEST(AutoStartLifecycledObjectTest, StopTokenWorks) {
+TEST(AutoStartLifecycleObjectTest, StopTokenWorks) {
   std::atomic<bool> running{true};
-  auto obj = AutoStartLifecycledObject::Create(
+  auto obj = AutoStartLifecycleObject::Create(
       [&running](std::stop_token stop_token) {
         while (!stop_token.stop_requested()) {
           running.store(true);
@@ -130,9 +130,9 @@ TEST(AutoStartLifecycledObjectTest, StopTokenWorks) {
   EXPECT_FALSE(running.load());
 }
 
-TEST(AutoStartLifecycledObjectTest, DestroyStopsThread) {
+TEST(AutoStartLifecycleObjectTest, DestroyStopsThread) {
   std::atomic<int> counter{0};
-  auto obj = AutoStartLifecycledObject::Create(
+  auto obj = AutoStartLifecycleObject::Create(
       [&counter](std::stop_token stop_token) {
         while (!stop_token.stop_requested()) {
           ++counter;
@@ -150,7 +150,7 @@ TEST(AutoStartLifecycledObjectTest, DestroyStopsThread) {
   EXPECT_EQ(counter.load(), count_before);
 }
 
-TEST(AutoStartLifecycledObjectTest, ThreadSafeStartStop) {
+TEST(AutoStartLifecycleObjectTest, ThreadSafeStartStop) {
   auto obj = TestAutoStartObject::Create<TestAutoStartObject>();
   EXPECT_NE(obj, nullptr);
   // Already started by Create
@@ -165,8 +165,8 @@ TEST(AutoStartLifecycledObjectTest, ThreadSafeStartStop) {
   obj->Stop();
 }
 
-TEST(AutoStartLifecycledObjectTest, OnStartOnStopCallbacksCalled) {
-  class CallbackTrackingObject : public AutoStartLifecycledObject {
+TEST(AutoStartLifecycleObjectTest, OnStartOnStopCallbacksCalled) {
+  class CallbackTrackingObject : public AutoStartLifecycleObject {
    public:
     std::atomic<int> on_start_count{0};
     std::atomic<int> on_stop_count{0};
@@ -174,12 +174,12 @@ TEST(AutoStartLifecycledObjectTest, OnStartOnStopCallbacksCalled) {
    protected:
     bool OnStart() override {
       ++on_start_count;
-      return AutoStartLifecycledObject::OnStart();
+      return AutoStartLifecycleObject::OnStart();
     }
 
     bool OnStop() override {
       ++on_stop_count;
-      return AutoStartLifecycledObject::OnStop();
+      return AutoStartLifecycleObject::OnStop();
     }
 
     void Run(std::stop_token) override {

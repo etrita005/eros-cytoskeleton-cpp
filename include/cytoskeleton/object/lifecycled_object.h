@@ -14,9 +14,9 @@ namespace eros {
 namespace cytos {
 namespace object {
 
-class LifecycledObject : public Object {
+class LifecycleObject : public Object {
  public:
-  using Ptr = std::shared_ptr<LifecycledObject>;
+  using Ptr = std::shared_ptr<LifecycleObject>;
 
   enum class State {
     kUninitialized,
@@ -30,9 +30,9 @@ class LifecycledObject : public Object {
     kDestroyed
   };
 
-  LifecycledObject() = default;
+  LifecycleObject() = default;
 
-  ~LifecycledObject() override {
+  ~LifecycleObject() override {
     if (GetState() != State::kDestroyed) {
       Destroy();
     }

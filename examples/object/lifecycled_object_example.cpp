@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Etrita. All rights reserved.
 //
 // 例程名称: lifecycled_object_example
-// 例程用途: 演示 LifecycledObject 的生命周期管理，包括服务启动/停止/销毁
+// 例程用途: 演示 LifecycleObject 的生命周期管理，包括服务启动/停止/销毁
 //
 // 功能说明:
 //   1. 实现自定义服务类，重写生命周期回调
@@ -19,7 +19,7 @@
 using namespace com::etrita::eros::cytos::object;
 
 // 数据处理器服务，演示生命周期管理
-class DataProcessor : public LifecycledObject {
+class DataProcessor : public LifecycleObject {
  public:
   int processed_count = 0;
 
@@ -65,7 +65,7 @@ class DataProcessor : public LifecycledObject {
 };
 
 int main() {
-  std::cout << "=== LifecycledObject Example ===" << std::endl;
+  std::cout << "=== LifecycleObject Example ===" << std::endl;
 
   // 示例 1: 完整生命周期
   std::cout << "\n[示例 1] 完整生命周期" << std::endl;

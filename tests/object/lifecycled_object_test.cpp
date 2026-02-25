@@ -8,7 +8,7 @@
 
 using namespace com::etrita::eros::cytos::object;
 
-class TestLifecycledObject : public LifecycledObject {
+class TestLifecycleObject : public LifecycleObject {
  public:
   int init_count = 0;
   int start_count = 0;
@@ -41,8 +41,8 @@ class TestLifecycledObject : public LifecycledObject {
   }
 };
 
-TEST(LifecycledObjectTest, InitialStateIsUninitialized) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, InitialStateIsUninitialized) {
+  auto obj = std::make_shared<TestLifecycleObject>();
   EXPECT_TRUE(obj->IsUninitialized());
   EXPECT_FALSE(obj->IsInitialized());
   EXPECT_FALSE(obj->IsRunning());
@@ -50,8 +50,8 @@ TEST(LifecycledObjectTest, InitialStateIsUninitialized) {
   EXPECT_FALSE(obj->IsDestroyed());
 }
 
-TEST(LifecycledObjectTest, InitializeTransitionsToInitialized) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, InitializeTransitionsToInitialized) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_EQ(obj->init_count, 1);
@@ -59,16 +59,16 @@ TEST(LifecycledObjectTest, InitializeTransitionsToInitialized) {
   EXPECT_FALSE(obj->IsUninitialized());
 }
 
-TEST(LifecycledObjectTest, InitializeIsIdempotent) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, InitializeIsIdempotent) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Initialize());
   EXPECT_EQ(obj->init_count, 1);
 }
 
-TEST(LifecycledObjectTest, InitializeFailureKeepsUninitialized) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, InitializeFailureKeepsUninitialized) {
+  auto obj = std::make_shared<TestLifecycleObject>();
   obj->init_result = false;
 
   EXPECT_FALSE(obj->Initialize());
@@ -76,8 +76,8 @@ TEST(LifecycledObjectTest, InitializeFailureKeepsUninitialized) {
   EXPECT_FALSE(obj->IsInitialized());
 }
 
-TEST(LifecycledObjectTest, StartTransitionsToRunning) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, StartTransitionsToRunning) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Start());
@@ -86,15 +86,15 @@ TEST(LifecycledObjectTest, StartTransitionsToRunning) {
   EXPECT_TRUE(obj->IsInitialized());
 }
 
-TEST(LifecycledObjectTest, StartBeforeInitializeFails) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, StartBeforeInitializeFails) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_FALSE(obj->Start());
   EXPECT_EQ(obj->start_count, 0);
 }
 
-TEST(LifecycledObjectTest, StartIsIdempotentWhenRunning) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, StartIsIdempotentWhenRunning) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Start());
@@ -102,8 +102,8 @@ TEST(LifecycledObjectTest, StartIsIdempotentWhenRunning) {
   EXPECT_EQ(obj->start_count, 1);
 }
 
-TEST(LifecycledObjectTest, StartFailureTransitionsToStopped) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, StartFailureTransitionsToStopped) {
+  auto obj = std::make_shared<TestLifecycleObject>();
   obj->start_result = false;
 
   EXPECT_TRUE(obj->Initialize());
@@ -112,8 +112,8 @@ TEST(LifecycledObjectTest, StartFailureTransitionsToStopped) {
   EXPECT_FALSE(obj->IsRunning());
 }
 
-TEST(LifecycledObjectTest, StopTransitionsToStopped) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, StopTransitionsToStopped) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Start());
@@ -123,16 +123,16 @@ TEST(LifecycledObjectTest, StopTransitionsToStopped) {
   EXPECT_FALSE(obj->IsRunning());
 }
 
-TEST(LifecycledObjectTest, StopWhenNotRunningIsIdempotent) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, StopWhenNotRunningIsIdempotent) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Stop());
   EXPECT_EQ(obj->stop_count, 0);
 }
 
-TEST(LifecycledObjectTest, DestroyTransitionsToDestroyed) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, DestroyTransitionsToDestroyed) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Start());
@@ -142,8 +142,8 @@ TEST(LifecycledObjectTest, DestroyTransitionsToDestroyed) {
   EXPECT_TRUE(obj->IsDestroyed());
 }
 
-TEST(LifecycledObjectTest, DestroyIsIdempotent) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, DestroyIsIdempotent) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Destroy());
@@ -151,8 +151,8 @@ TEST(LifecycledObjectTest, DestroyIsIdempotent) {
   EXPECT_EQ(obj->destroy_count, 1);
 }
 
-TEST(LifecycledObjectTest, DestroyStopsRunningObject) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, DestroyStopsRunningObject) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Start());
@@ -162,8 +162,8 @@ TEST(LifecycledObjectTest, DestroyStopsRunningObject) {
   EXPECT_TRUE(obj->IsDestroyed());
 }
 
-TEST(LifecycledObjectTest, RestartAfterStop) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, RestartAfterStop) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   EXPECT_TRUE(obj->Initialize());
   EXPECT_TRUE(obj->Start());
@@ -173,10 +173,10 @@ TEST(LifecycledObjectTest, RestartAfterStop) {
   EXPECT_TRUE(obj->IsRunning());
 }
 
-TEST(LifecycledObjectTest, DestructorCallsDestroy) {
-  std::shared_ptr<TestLifecycledObject> obj;
+TEST(LifecycleObjectTest, DestructorCallsDestroy) {
+  std::shared_ptr<TestLifecycleObject> obj;
   {
-    auto local_obj = std::make_shared<TestLifecycledObject>();
+    auto local_obj = std::make_shared<TestLifecycleObject>();
     local_obj->destroy_count = 0;
     EXPECT_TRUE(local_obj->Initialize());
     EXPECT_TRUE(local_obj->Start());
@@ -193,26 +193,26 @@ TEST(LifecycledObjectTest, DestructorCallsDestroy) {
   // The important thing is that Destroy() was called during destruction
 }
 
-TEST(LifecycledObjectTest, StateTransitions) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, StateTransitions) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
-  EXPECT_EQ(obj->GetState(), LifecycledObject::State::kUninitialized);
+  EXPECT_EQ(obj->GetState(), LifecycleObject::State::kUninitialized);
 
   obj->Initialize();
-  EXPECT_EQ(obj->GetState(), LifecycledObject::State::kInitialized);
+  EXPECT_EQ(obj->GetState(), LifecycleObject::State::kInitialized);
 
   obj->Start();
-  EXPECT_EQ(obj->GetState(), LifecycledObject::State::kRunning);
+  EXPECT_EQ(obj->GetState(), LifecycleObject::State::kRunning);
 
   obj->Stop();
-  EXPECT_EQ(obj->GetState(), LifecycledObject::State::kStopped);
+  EXPECT_EQ(obj->GetState(), LifecycleObject::State::kStopped);
 
   obj->Destroy();
-  EXPECT_EQ(obj->GetState(), LifecycledObject::State::kDestroyed);
+  EXPECT_EQ(obj->GetState(), LifecycleObject::State::kDestroyed);
 }
 
-TEST(LifecycledObjectTest, ThreadSafeStateTransitions) {
-  auto obj = std::make_shared<TestLifecycledObject>();
+TEST(LifecycleObjectTest, ThreadSafeStateTransitions) {
+  auto obj = std::make_shared<TestLifecycleObject>();
 
   std::thread t1([obj]() { obj->Initialize(); });
   std::thread t2([obj]() { obj->Initialize(); });

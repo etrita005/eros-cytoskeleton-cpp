@@ -11,9 +11,9 @@
 ### 1.3 设计目标
 - 提供类似 Java Object 的基础类，作为所有高层对象的基类
 - 内置线程同步原语（Mutex 和 Event），简化对象级并发控制
-- 提供对象生命周期管理框架（LifecycledObject）
+- 提供对象生命周期管理框架（LifecycleObject）
 - 提供单例模式模板（Singleton）
-- 提供自启动生命周期对象（AutoStartLifecycledObject）
+- 提供自启动生命周期对象（AutoStartLifecycleObject）
 - API 风格参考 C# 和 Android，遵循 Google C++ Style Guide
 - **面向机器人应用与服务开发，不面向高性能场景**
 - **API 设计原则：安全性 > 易用性 > 性能**
@@ -22,7 +22,7 @@
 C++20
 
 ### 1.5 命名约定
-- 类名：大驼峰命名（PascalCase），如 `Object`、`LifecycledObject`
+- 类名：大驼峰命名（PascalCase），如 `Object`、`LifecycleObject`
 - 方法名：大驼峰命名（PascalCase），如 `Initialize`、`GetSharedPtr`
 - 参数名：小驼峰命名（camelCase），如 `timeout_ms`
 
@@ -131,11 +131,11 @@ instance->DoSomething();
 
 ---
 
-## 4. 生命周期对象 LifecycledObject
+## 4. 生命周期对象 LifecycleObject
 
 ### 4.1 设计说明
 
-`LifecycledObject` 继承自 `Object`，提供标准化的生命周期管理。
+`LifecycleObject` 继承自 `Object`，提供标准化的生命周期管理。
 
 **生命周期状态：**
 ```
@@ -164,7 +164,7 @@ Uninitialized -> Initializing -> Initialized -> Starting -> Running -> Stopping 
 ### 4.2 API
 
 **类型定义：**
-- `using Ptr = std::shared_ptr<LifecycledObject>` - 生命周期对象智能指针类型
+- `using Ptr = std::shared_ptr<LifecycleObject>` - 生命周期对象智能指针类型
 
 **枚举：**
 - `State::kUninitialized` - 未初始化
@@ -178,8 +178,8 @@ Uninitialized -> Initializing -> Initialized -> Starting -> Running -> Stopping 
 - `State::kDestroyed` - 已销毁
 
 **公共方法：**
-- `LifecycledObject()` - 构造函数
-- `~LifecycledObject()` - 析构函数（自动调用 Destroy）
+- `LifecycleObject()` - 构造函数
+- `~LifecycleObject()` - 析构函数（自动调用 Destroy）
 - `bool Initialize()` - 初始化（非虚，内部调用 OnInitialize）
 - `bool Start()` - 启动（非虚，内部调用 OnStart）
 - `bool Stop()` - 停止（非虚，内部调用 OnStop）
@@ -201,7 +201,7 @@ Uninitialized -> Initializing -> Initialized -> Starting -> Running -> Stopping 
 ### 4.3 使用示例
 
 ```cpp
-class MyService : public LifecycledObject {
+class MyService : public LifecycleObject {
  public:
   MyService() = default;
   ~MyService() override = default;
@@ -241,11 +241,11 @@ if (service->Initialize()) {
 
 ---
 
-## 5. 自启动生命周期对象 AutoStartLifecycledObject
+## 5. 自启动生命周期对象 AutoStartLifecycleObject
 
 ### 5.1 设计说明
 
-`AutoStartLifecycledObject` 继承自 `LifecycledObject`，在 `Start()` 时自动创建线程执行 `Run()` 方法。
+`AutoStartLifecycleObject` 继承自 `LifecycleObject`，在 `Start()` 时自动创建线程执行 `Run()` 方法。
 
 **实现说明：**
 - 内部使用 `concurrent::Thread` 管理线程
@@ -267,12 +267,12 @@ if (service->Initialize()) {
 ### 5.2 API
 
 **类型定义：**
-- `using Ptr = std::shared_ptr<AutoStartLifecycledObject>` - 自启动生命周期对象智能指针类型
+- `using Ptr = std::shared_ptr<AutoStartLifecycleObject>` - 自启动生命周期对象智能指针类型
 
 **构造函数：**
-- `AutoStartLifecycledObject()` - 默认构造函数（供子类继承使用）
-- `explicit AutoStartLifecycledObject(std::function<void(std::stop_token)> run_func)` - Lambda 构造函数
-- `~AutoStartLifecycledObject()` - 析构函数
+- `AutoStartLifecycleObject()` - 默认构造函数（供子类继承使用）
+- `explicit AutoStartLifecycleObject(std::function<void(std::stop_token)> run_func)` - Lambda 构造函数
+- `~AutoStartLifecycleObject()` - 析构函数
 
 **工厂方法（推荐）：**
 - `template<typename T, typename... Args> static std::shared_ptr<T> Create(Args&&... args)` - 创建对象并返回 shared_ptr
@@ -288,7 +288,7 @@ if (service->Initialize()) {
 
 **方式 1 - 子类继承（推荐）：**
 ```cpp
-class Worker : public AutoStartLifecycledObject {
+class Worker : public AutoStartLifecycleObject {
  public:
   Worker() = default;
 
@@ -316,8 +316,8 @@ worker->Stop();   // 请求停止并等待线程结束
 
 **方式 2 - Lambda（使用工厂方法）：**
 ```cpp
-auto worker = AutoStartLifecycledObject::CreateWithLambda(
-    [](std::stop_token stop_token, std::shared_ptr<AutoStartLifecycledObject> self) {
+auto worker = AutoStartLifecycleObject::CreateWithLambda(
+    [](std::stop_token stop_token, std::shared_ptr<AutoStartLifecycleObject> self) {
       while (!stop_token.stop_requested()) {
         // 执行任务，通过 self 访问对象成员
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -353,14 +353,14 @@ worker->Stop();
 - 测试多线程环境下的线程安全创建
 - 测试单例生命周期管理
 
-### 7.3 LifecycledObject 测试
+### 7.3 LifecycleObject 测试
 - 测试状态机转换的正确性
 - 测试重复调用的幂等性
 - 测试多线程环境下的状态安全
 - 测试重复启动/停止功能
 - 测试析构时自动调用 Destroy
 
-### 7.4 AutoStartLifecycledObject 测试
+### 7.4 AutoStartLifecycleObject 测试
 - 测试自动启动线程功能
 - 测试 `Stop()` 正确停止线程
 - 测试重复启动/停止功能

@@ -1,0 +1,31 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "object_basic_example",
+    srcs = ["object_basic_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/object:object"],
+)
+
+cc_binary(
+    name = "lifecycled_object_example",
+    srcs = ["lifecycled_object_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/object:object"],
+)
+
+cc_binary(
+    name = "auto_start_example",
+    srcs = ["auto_start_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/object:object"],
+)
+
+cc_binary(
+    name = "singleton_example",
+    srcs = ["singleton_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/object:object"],
+)
