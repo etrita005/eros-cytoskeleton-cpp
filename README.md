@@ -82,7 +82,7 @@ bazel build //tests/...
 
 ### 交叉编译（ARM64）
 
-项目支持 ARM64 交叉编译，使用完全静态链接以兼容不同版本的 glibc。
+项目支持 ARM64 交叉编译，使用动态链接方式。对于 glibc 版本不兼容的目标机，可以通过 `LD_LIBRARY_PATH` 指定自定义 glibc 路径。
 
 #### 安装交叉编译工具链
 
@@ -111,33 +111,66 @@ aarch64-linux-gnu-g++ -std=c++20 -E -xc++ - </dev/null >/dev/null 2>&1 && echo "
 #### 交叉编译所有示例
 
 ```bash
-# 编译所有示例（BCR 的 boost 库支持静态链接）
-bazel build --config=arm64 //examples/concurrent:mutex_example
-bazel build --config=arm64 //examples/concurrent:event_example
-bazel build --config=arm64 //examples/concurrent:vector_example
-bazel build --config=arm64 //examples/concurrent:map_example
-bazel build --config=arm64 //examples/concurrent:hash_map_example
-bazel build --config=arm64 //examples/concurrent:queue_example
-bazel build --config=arm64 //examples/concurrent:list_example
-bazel build --config=arm64 //examples/concurrent:stack_example
-bazel build --config=arm64 //examples/concurrent:thread_example
-bazel build --config=arm64 //examples/concurrent:thread_pool_example
-bazel build --config=arm64 //examples/concurrent:tree_example
-bazel build --config=arm64 //examples/itc/message_queue:basic_example
-bazel build --config=arm64 //examples/object:object_basic_example
-bazel build --config=arm64 //examples/object:lifecycled_object_example
-bazel build --config=arm64 //examples/object:auto_start_example
-bazel build --config=arm64 //examples/object:singleton_example
+# 编译所有示例（动态链接）
+bazel build --config=arm64 //examples/...
 
-# 或者使用脚本批量编译
-for target in mutex_example event_example vector_example map_example hash_map_example queue_example list_example stack_example thread_example thread_pool_example tree_example; do
-    bazel build --config=arm64 //examples/concurrent:$target
-done
+# 编译所有测试（动态链接）
+bazel build --config=arm64 //tests/...
 ```
 
-**注意**：
-1. 静态链接与共享库（.so）不兼容，因此 `--config=arm64` 只能用于构建可执行文件，不能用于构建共享库
-2. BCR (Bazel Central Registry) 中的 boost 库默认提供静态库（.a），可以与 `-static` 选项一起使用
+#### 部署到目标机（使用自定义 glibc）
+
+如果目标机的 glibc 版本较低（如 Ubuntu 18.04 的 glibc 2.27），可以将宿主机的高版本 glibc 复制到目标机，通过 `LD_LIBRARY_PATH` 指定：
+
+**步骤 1：在宿主机上编译**
+```bash
+bazel build --config=arm64 //examples/...
+```
+
+**步骤 2：复制 glibc 到目标机**
+```bash
+# 在目标机上创建目录
+ssh developer@10.2.9.185 "mkdir -p ~/glibc-2.39"
+
+# 复制 glibc 库文件
+scp /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 \
+    /usr/aarch64-linux-gnu/lib/libc.so.6 \
+    /usr/aarch64-linux-gnu/lib/libm.so.6 \
+    /usr/aarch64-linux-gnu/lib/libpthread.so.0 \
+    /usr/aarch64-linux-gnu/lib/libdl.so.2 \
+    /usr/aarch64-linux-gnu/lib/librt.so.1 \
+    /usr/lib/aarch64-linux-gnu/libstdc++.so.6 \
+    /usr/lib/aarch64-linux-gnu/libgcc_s.so.1 \
+    developer@10.2.9.185:~/glibc-2.39/
+```
+
+**步骤 3：复制程序到目标机**
+```bash
+scp bazel-bin/examples/concurrent/*_example developer@10.2.9.185:~/eros-examples/
+scp bazel-bin/examples/module/* developer@10.2.9.185:~/eros-examples/module/
+```
+
+**步骤 4：在目标机上运行（使用自定义 glibc）**
+```bash
+# 使用自定义 glibc 运行程序
+LD_LIBRARY_PATH=~/glibc-2.39 \
+~/glibc-2.39/ld-linux-aarch64.so.1 \
+--library-path ~/glibc-2.39 \
+./mutex_example
+
+# 或者创建启动脚本
+cat > run_with_glibc.sh << 'EOF'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GLIBC_DIR="${SCRIPT_DIR}/glibc-2.39"
+export LD_LIBRARY_PATH="${GLIBC_DIR}:${LD_LIBRARY_PATH}"
+"${GLIBC_DIR}/ld-linux-aarch64.so.1" --library-path "${GLIBC_DIR}" "$@"
+EOF
+chmod +x run_with_glibc.sh
+
+# 使用脚本运行
+./run_with_glibc.sh ./mutex_example
+```
 
 ### 运行示例
 
@@ -196,7 +229,7 @@ cytoskeleton-cpp/
 │   ├── BUILD.bazel                # 工具链定义
 │   └── cc_toolchain_config.bzl    # 工具链配置规则
 ├── examples/                      # 示例代码
-│   ├── concurrent/                # 并发示例（10个）
+│   ├── concurrent/                # 并发示例（11个）
 │   ├── object/                    # 对象示例（4个）
 │   ├── itc/message_queue/         # 消息队列示例（1个）
 │   └── module/                    # module 模块示例
@@ -220,8 +253,8 @@ cytoskeleton-cpp/
 
 - **目标平台**：ARM64 (aarch64-linux-gnu)
 - **C++标准**：C++20
-- **链接方式**：完全静态链接（`-static -static-libgcc -static-libstdc++`）
-- **GLIBC兼容**：静态链接 glibc，兼容目标机的不同 glibc 版本
+- **链接方式**：动态链接（支持共享库）
+- **GLIBC兼容**：通过 `LD_LIBRARY_PATH` 指定自定义 glibc 路径
 
 ### 工具链文件
 
@@ -232,11 +265,11 @@ cytoskeleton-cpp/
 ### 使用方法
 
 ```bash
-# 静态链接编译（用于部署到目标机）
-bazel build --config=arm64 //examples/concurrent:mutex_example
+# 交叉编译（动态链接）
+bazel build --config=arm64 //examples/...
 
-# 本地动态链接编译（用于本机测试）
-bazel build --config=native //examples/concurrent:mutex_example
+# 本地编译（用于本机测试）
+bazel build --config=native //examples/...
 ```
 
 ## 命名空间
@@ -284,18 +317,18 @@ bazel test //tests/... --test_output=all
 
 ```bash
 # 部署到远程机器
-scp bazel-bin/examples/concurrent/*_example developer@10.2.9.185:~/eros-examples/concurrent/
-scp bazel-bin/examples/object/*_example developer@10.2.9.185:~/eros-examples/object/
-scp bazel-bin/examples/itc/message_queue/basic_example developer@10.2.9.185:~/eros-examples/itc/message_queue/
+scp bazel-bin/examples/concurrent/*_example developer@10.2.9.185:~/eros-examples/
+scp bazel-bin/examples/module/* developer@10.2.9.185:~/eros-examples/module/
 
-# 远程运行测试
-ssh developer@10.2.9.185 "cd ~/eros-examples && ./concurrent/mutex_example"
+# 远程运行测试（使用自定义 glibc）
+ssh developer@10.2.9.185 "cd ~/eros-examples && LD_LIBRARY_PATH=~/glibc-2.39 ~/glibc-2.39/ld-linux-aarch64.so.1 --library-path ~/glibc-2.39 ./mutex_example"
 ```
 
 **已测试示例（17个全部通过）**：
 - Concurrent: mutex_example, event_example, vector_example, map_example, hash_map_example, queue_example, list_example, stack_example, thread_example, thread_pool_example, tree_example
 - ITC: basic_example
 - Object: object_basic_example, lifecycled_object_example, auto_start_example, singleton_example
+- Module: loader_example (with libsample_module.so)
 
 ## 文档
 
