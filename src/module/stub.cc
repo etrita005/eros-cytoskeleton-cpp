@@ -14,12 +14,12 @@ namespace module {
 using object::Object;
 
 static Manifest* GetManifestInstance() {
-  static Manifest* manifest = new Manifest();
+  static auto* manifest = new Manifest();
   return manifest;
 }
 
 static std::vector<Module>* GetModulesInstance() {
-  static std::vector<Module>* modules = new std::vector<Module>();
+  static auto* modules = new std::vector<Module>();
   return modules;
 }
 

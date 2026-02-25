@@ -71,16 +71,16 @@ TEST(ObjectTest, TryLockSucceedsWhenUnlocked) {
 
 TEST(ObjectTest, NotifyAndJoin) {
   auto obj = std::make_shared<TestObject>();
-  bool notified = false;
+  std::atomic<bool> notified{false};
 
   std::thread notifier([obj, &notified]() {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    notified.store(true, std::memory_order_release);
     obj->Notify();
-    notified = true;
   });
 
   obj->Join();
-  EXPECT_TRUE(notified);
+  EXPECT_TRUE(notified.load(std::memory_order_acquire));
   notifier.join();
 }
 

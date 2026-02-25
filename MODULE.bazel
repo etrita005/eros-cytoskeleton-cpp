@@ -10,10 +10,14 @@ bazel_dep(name = "boost.property_tree", version = "1.87.0")
 bazel_dep(name = "boost.asio", version = "1.87.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 
-# Register custom toolchains for cross-compilation
+# Register custom toolchains for cross-compilation and native builds
+# - cc-toolchain-x86_64-linux: x86_64 native compilation (on x86_64 host)
+# - cc-toolchain-arm64-linux-native: ARM64 native compilation (on ARM64 host)
+# - cc-toolchain-arm64-linux-cross: Cross-compilation from x86_64 to ARM64
 register_toolchains(
-    "//toolchain:cc-toolchain-arm64-linux",
     "//toolchain:cc-toolchain-x86_64-linux",
+    "//toolchain:cc-toolchain-arm64-linux-native",
+    "//toolchain:cc-toolchain-arm64-linux-cross",
 )
 
 # Hedron's Compile Commands Extractor for Bazel

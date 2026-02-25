@@ -82,7 +82,20 @@ bazel build //tests/...
 
 ### 交叉编译（ARM64）
 
-项目支持 ARM64 交叉编译。编译时自动嵌入 `/opt/eros/lib` 作为自定义 glibc 路径，程序会自动使用 `/opt/eros/lib/ld-linux-aarch64.so.1` 作为动态链接器，无需手动指定。
+项目支持 ARM64 交叉编译和原生编译。根据您的宿主机和目标架构选择合适的配置：
+
+| 配置 | 说明 | 使用场景 |
+|------|------|----------|
+| `--config=x86_64` | x86_64 原生编译 | 在 x86_64 主机上编译 x86_64 程序 |
+| `--config=arm64` | ARM64 原生编译 | 在 ARM64 主机上编译 ARM64 程序 |
+| `--config=cross_arm64` | 交叉编译到 ARM64 | 在 x86_64 主机上编译 ARM64 程序（使用自定义 glibc） |
+
+#### 交叉编译配置说明
+
+`--config=cross_arm64` 配置会自动嵌入 `/opt/eros/lib` 作为自定义 glibc 路径：
+- 程序会自动使用 `/opt/eros/lib/ld-linux-aarch64.so.1` 作为动态链接器
+- 无需手动指定 loader 或设置 `LD_LIBRARY_PATH`
+- 适用于目标机 glibc 版本较低（如 Ubuntu 18.04 的 glibc 2.27）的情况
 
 #### 安装交叉编译工具链
 
@@ -111,17 +124,23 @@ aarch64-linux-gnu-g++ -std=c++20 -E -xc++ - </dev/null >/dev/null 2>&1 && echo "
 #### 交叉编译全部目标
 
 ```bash
-# 交叉编译所有目标（示例、测试、模块库）
-bazel build --config=arm64 //:all
+# 交叉编译所有目标（示例、测试、模块库）- x86_64 主机 -> ARM64 目标
+bazel build --config=cross_arm64 //:all
 
 # 编译所有示例
-bazel build --config=arm64 //examples/...
+bazel build --config=cross_arm64 //examples/...
 
 # 编译所有测试
-bazel build --config=arm64 //tests/...
+bazel build --config=cross_arm64 //tests/...
 
 # 编译所有模块库
-bazel build --config=arm64 //include/cytoskeleton/module:all
+bazel build --config=cross_arm64 //include/cytoskeleton/module:all
+
+# ARM64 原生编译（在 ARM64 主机上）
+bazel build --config=arm64 //:all
+
+# x86_64 原生编译（在 x86_64 主机上）
+bazel build --config=x86_64 //:all
 ```
 
 #### 部署到目标机
@@ -130,7 +149,7 @@ bazel build --config=arm64 //include/cytoskeleton/module:all
 
 **步骤 1：在宿主机上编译**
 ```bash
-bazel build --config=arm64 //:all
+bazel build --config=cross_arm64 //:all
 ```
 
 **步骤 2：在目标机上创建目录并复制动态库**
@@ -139,7 +158,6 @@ bazel build --config=arm64 //:all
 - **glibc 库**：libc.so.6、libm.so.6、libpthread.so.0、libdl.so.2、librt.so.1、ld-linux-aarch64.so.1
 - **编译器运行时库**：libstdc++.so.6、libgcc_s.so.1
 - **Bazel 生成的共享库**：编译过程中生成的 `_solib_aarch64` 目录下的库文件
-- **其他动态库**：如 `*.so` 文件
 
 ```bash
 # 在目标机上创建目录（需要 root 权限或确保目录可写）
@@ -152,13 +170,18 @@ scp /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 \
     /usr/aarch64-linux-gnu/lib/libpthread.so.0 \
     /usr/aarch64-linux-gnu/lib/libdl.so.2 \
     /usr/aarch64-linux-gnu/lib/librt.so.1 \
-    /usr/aarch64-linux-gnu/lib/libstdc++.so.6 \
-    /usr/aarch64-linux-gnu/lib/libgcc_s.so.1 \
     <user>@<target-host>:/opt/eros/lib/
 
-# 复制 Bazel 生成的共享库（从编译缓存或 bazel-bin 目录）
-# 注意：需要找到编译时生成的共享库，通常在 bazel 缓存目录中
-scp <bazel-cache-path>/_solib_aarch64/*.so <user>@<target-host>:/opt/eros/lib/
+# 复制编译器运行时库（注意路径可能不同）
+scp /usr/lib/aarch64-linux-gnu/libstdc++.so.6 \
+    /usr/lib/aarch64-linux-gnu/libgcc_s.so.1 \
+    <user>@<target-host>:/opt/eros/lib/
+
+# 复制 Bazel 生成的共享库（从 _solib_aarch64 目录）
+# 首先解引用符号链接
+mkdir -p /tmp/bazel-libs
+cp -L <bazel-cache-path>/bazel-out/aarch64-fastbuild/bin/_solib_aarch64/* /tmp/bazel-libs/
+scp /tmp/bazel-libs/* <user>@<target-host>:/opt/eros/lib/
 
 # 复制其他动态库（如有）
 scp bazel-bin/examples/module/*.so <user>@<target-host>:/opt/eros/lib/
@@ -268,10 +291,10 @@ cytoskeleton-cpp/
 
 项目已配置完整的 Bazel 交叉编译工具链，支持：
 
-- **目标平台**：ARM64 (aarch64-linux-gnu)
+- **目标平台**：ARM64 (aarch64-linux-gnu)、x86_64 (x86_64-linux-gnu)
 - **C++标准**：C++20
 - **链接方式**：动态链接（支持共享库）
-- **GLIBC兼容**：通过 `LD_LIBRARY_PATH` 指定自定义 glibc 路径
+- **GLIBC兼容**：交叉编译时通过 `/opt/eros/lib` 指定自定义 glibc 路径
 
 ### 工具链文件
 
@@ -282,11 +305,14 @@ cytoskeleton-cpp/
 ### 使用方法
 
 ```bash
-# 交叉编译（动态链接）
+# 交叉编译（x86_64 主机 -> ARM64 目标，使用自定义 glibc）
+bazel build --config=cross_arm64 //examples/...
+
+# ARM64 原生编译（在 ARM64 主机上）
 bazel build --config=arm64 //examples/...
 
-# 本地编译（用于本机测试）
-bazel build --config=native //examples/...
+# x86_64 原生编译（在 x86_64 主机上）
+bazel build --config=x86_64 //examples/...
 ```
 
 ## 命名空间
@@ -337,9 +363,11 @@ bazel test //tests/... --test_output=all
 scp bazel-bin/examples/concurrent/*_example <user>@<target-host>:~/eros-examples/
 scp bazel-bin/examples/module/* <user>@<target-host>:~/eros-libs/
 
-# 远程运行测试（使用自定义 glibc）
-ssh <user>@<target-host> "cd ~/eros-examples && LD_LIBRARY_PATH=~/eros-libs ~/eros-libs/ld-linux-aarch64.so.1 ./mutex_example"
+# 远程运行测试（程序会自动使用 /opt/eros/lib 的动态链接器）
+ssh <user>@<target-host> "cd ~/eros-examples && ./mutex_example"
 ```
+
+**注意**：使用 `--config=cross_arm64` 编译的程序会自动嵌入 `/opt/eros/lib/ld-linux-aarch64.so.1` 作为动态链接器，无需手动指定。
 
 **可测试的示例包括**：
 - Concurrent: mutex_example, event_example, vector_example, map_example, hash_map_example, queue_example, list_example, stack_example, thread_example, thread_pool_example, tree_example
