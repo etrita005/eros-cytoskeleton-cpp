@@ -1,11 +1,14 @@
 # Bazel configuration for cross-compilation
 
-# ARM64 cross-compilation configuration (dynamic linking)
+# ARM64 cross-compilation configuration
+# This configuration embeds /opt/eros/lib as the custom glibc path
+# Programs will automatically use /opt/eros/lib/ld-linux-aarch64.so.1 as the dynamic linker
+# This allows running on target systems with older glibc without manual loader invocation
 build:arm64 --platforms=//toolchain:linux_arm64
 build:arm64 --crosstool_top=//toolchain:toolchain
 build:arm64 --cpu=aarch64
 build:arm64 --compiler=gcc
-# Dynamic linking - requires copying glibc and other libs to target system
+build:arm64 --features=custom_glibc
 
 # ARM64 native compilation (for local testing)
 build:native --platforms=//toolchain:linux_arm64

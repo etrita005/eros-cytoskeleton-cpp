@@ -86,11 +86,35 @@ def _impl(ctx):
         ],
     )
 
+    # Feature for custom GLIBC path - embeds rpath and dynamic-linker into binaries
+    # This allows programs to run on systems with older glibc without manual loader invocation
+    # Programs will automatically use /opt/eros/lib/ld-linux-aarch64.so.1 as the dynamic linker
+    custom_glibc_feature = feature(
+        name = "custom_glibc",
+        enabled = True,  # Enabled by default for ARM64 cross-compilation
+        flag_sets = [
+            flag_set(
+                actions = [
+                    ACTION_NAMES.cpp_link_executable,
+                ],
+                flag_groups = [
+                    flag_group(
+                        flags = [
+                            "-Wl,--rpath=/opt/eros/lib",
+                            "-Wl,--dynamic-linker=/opt/eros/lib/ld-linux-aarch64.so.1",
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
+
     features = [
         cxx20_feature,
         supports_pic_feature,
         supports_dynamic_linker_feature,
         default_link_flags_feature,
+        custom_glibc_feature,
     ]
 
     return cc_common.create_cc_toolchain_config_info(
