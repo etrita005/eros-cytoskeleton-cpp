@@ -383,7 +383,7 @@ TEST(LooperTest, UnregisterHandler) {
 
   auto id1 = looper->RegisterHandler<Message>(
       [&count](std::shared_ptr<Message> msg) { count++; });
-  auto id2 = looper->RegisterHandler<Message>(
+  [[maybe_unused]] auto id2 = looper->RegisterHandler<Message>(
       [&count](std::shared_ptr<Message> msg) { count++; });
 
   looper->Post<Message>();
@@ -627,6 +627,198 @@ TEST(IntegrationTest, MultiThreadedPost) {
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
   EXPECT_EQ(counter, 100);
+  looper->Exit();
+}
+
+// PostHandler Tests
+TEST(PostHandlerTest, BasicPostHandler) {
+  auto looper = std::make_shared<Looper>("PostHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<bool> executed{false};
+  looper->PostHandler([&executed]() { executed = true; });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_TRUE(executed);
+
+  looper->Exit();
+}
+
+TEST(PostHandlerTest, PostHandlerWithCapture) {
+  auto looper = std::make_shared<Looper>("PostHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<int> value{0};
+  int captured_value = 42;
+  looper->PostHandler([&value, captured_value]() { value = captured_value; });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_EQ(value, 42);
+
+  looper->Exit();
+}
+
+TEST(PostHandlerTest, PostHandlerDelayed) {
+  auto looper = std::make_shared<Looper>("PostHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<bool> executed{false};
+  auto start = std::chrono::steady_clock::now();
+
+  looper->PostHandler([&executed]() { executed = true; },
+                      std::chrono::milliseconds(200));
+
+  // Should not execute immediately
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  EXPECT_FALSE(executed);
+
+  // Wait for execution
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  auto end = std::chrono::steady_clock::now();
+
+  EXPECT_TRUE(executed);
+  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  EXPECT_GE(elapsed.count(), 150);  // Should have waited at least 150ms
+
+  looper->Exit();
+}
+
+TEST(PostHandlerTest, MultiplePostHandlers) {
+  auto looper = std::make_shared<Looper>("PostHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<int> counter{0};
+
+  looper->PostHandler([&counter]() { counter++; });
+  looper->PostHandler([&counter]() { counter++; });
+  looper->PostHandler([&counter]() { counter++; });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_EQ(counter, 3);
+
+  looper->Exit();
+}
+
+TEST(PostHandlerTest, PostHandlerMixedWithRegularHandlers) {
+  auto looper = std::make_shared<Looper>("PostHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<int> counter{0};
+
+  // Register a regular handler
+  looper->RegisterHandler<Message>(
+      [&counter](std::shared_ptr<Message> msg) { counter += 10; });
+
+  // Post a regular message
+  looper->Post<Message>();
+
+  // Post a lambda handler
+  looper->PostHandler([&counter]() { counter += 1; });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_EQ(counter, 11);
+
+  looper->Exit();
+}
+
+// InvokeHandler Tests
+TEST(InvokeHandlerTest, BasicInvokeHandler) {
+  auto looper = std::make_shared<Looper>("InvokeHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<bool> executed{false};
+  bool result = looper->InvokeHandler([&executed]() { executed = true; });
+
+  EXPECT_TRUE(result);
+  EXPECT_TRUE(executed);
+
+  looper->Exit();
+}
+
+TEST(InvokeHandlerTest, InvokeHandlerWithCapture) {
+  auto looper = std::make_shared<Looper>("InvokeHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<int> value{0};
+  int captured_value = 42;
+  bool result = looper->InvokeHandler([&value, captured_value]() { value = captured_value; });
+
+  EXPECT_TRUE(result);
+  EXPECT_EQ(value, 42);
+
+  looper->Exit();
+}
+
+TEST(InvokeHandlerTest, InvokeHandlerWithTimeout) {
+  auto looper = std::make_shared<Looper>("InvokeHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<int> value{0};
+  bool result = looper->InvokeHandler(
+      [&value]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        value = 100;
+      },
+      std::chrono::milliseconds(200));
+
+  EXPECT_TRUE(result);
+  EXPECT_EQ(value, 100);
+
+  looper->Exit();
+}
+
+TEST(InvokeHandlerTest, InvokeHandlerTimeoutExpired) {
+  auto looper = std::make_shared<Looper>("InvokeHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<bool> executed{false};
+  bool result = looper->InvokeHandler(
+      [&executed]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        executed = true;
+      },
+      std::chrono::milliseconds(50));
+
+  EXPECT_FALSE(result);
+  // Note: The handler may still execute after timeout, so we don't check 'executed'
+
+  looper->Exit();
+}
+
+TEST(InvokeHandlerTest, MultipleInvokeHandlers) {
+  auto looper = std::make_shared<Looper>("InvokeHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<int> counter{0};
+
+  bool result1 = looper->InvokeHandler([&counter]() { counter++; });
+  bool result2 = looper->InvokeHandler([&counter]() { counter++; });
+  bool result3 = looper->InvokeHandler([&counter]() { counter++; });
+
+  EXPECT_TRUE(result1);
+  EXPECT_TRUE(result2);
+  EXPECT_TRUE(result3);
+  EXPECT_EQ(counter, 3);
+
+  looper->Exit();
+}
+
+TEST(InvokeHandlerTest, InvokeHandlerMixedWithPostHandler) {
+  auto looper = std::make_shared<Looper>("InvokeHandlerTest", true);
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  std::atomic<int> counter{0};
+
+  // Invoke synchronously
+  bool result = looper->InvokeHandler([&counter]() { counter += 10; });
+  EXPECT_TRUE(result);
+  EXPECT_EQ(counter, 10);
+
+  // Post asynchronously
+  looper->PostHandler([&counter]() { counter += 1; });
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT_EQ(counter, 11);
+
   looper->Exit();
 }
 

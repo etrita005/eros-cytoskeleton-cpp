@@ -153,6 +153,34 @@ looper->Post(WM_CLICK, wparam, lparam);
 looper->PostDelayed<ClickMessage>(std::chrono::seconds(1), 100, 200);
 ```
 
+#### PostHandler（简化 Lambda 发送）
+
+```cpp
+// 直接 Post 一个无参数、无返回值的 Lambda
+looper->PostHandler([]() {
+  std::cout << "Hello World!" << std::endl;
+});
+
+// 延迟 1 秒后执行
+looper->PostHandler([]() {
+  std::cout << "Delayed hello!" << std::endl;
+}, std::chrono::seconds(1));
+```
+
+#### InvokeHandler（同步 Lambda 执行）
+
+```cpp
+// 同步执行 Lambda，阻塞直到执行完成
+bool success = looper->InvokeHandler([]() {
+  std::cout << "Sync execution!" << std::endl;
+});
+
+// 带超时的同步执行
+bool success = looper->InvokeHandler([]() {
+  std::cout << "Sync with timeout!" << std::endl;
+}, std::chrono::milliseconds(1000));
+```
+
 #### 同步发送（Send）
 
 ```cpp
@@ -296,6 +324,9 @@ looper->UnregisterAllHandlers<Message>();
 | `SendWithTimeout<MessageType>(timeout, args...)` | 带超时的同步发送 |
 | `Post(what, wparam, lparam)` | 发送轻量级消息 |
 | `Send(what, wparam, lparam)` | 同步发送轻量级消息 |
+| `PostHandler(func, delay)` | 直接发送 Lambda（无需注册 Handler） |
+| `InvokeHandler(func)` | 同步执行 Lambda（阻塞等待） |
+| `InvokeHandler(func, timeout)` | 带超时的同步执行 Lambda |
 | `AsyncLoop()` | 在新线程中启动消息循环 |
 | `Loop()` | 消息循环主体（阻塞调用） |
 | `Exit()` | 退出消息循环 |

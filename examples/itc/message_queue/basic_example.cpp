@@ -199,6 +199,54 @@ int main() {
   std::cout << "Counter after unregister (should be same): " << counter << std::endl;
 
   // ============================================
+  // Example 8: PostHandler (Direct Lambda Execution)
+  // ============================================
+  std::cout << "\n[Example 8] PostHandler (Direct Lambda Execution)" << std::endl;
+
+  // Direct lambda execution without registering a handler
+  looper->PostHandler([]() {
+    std::cout << "PostHandler: Hello World!" << std::endl;
+  });
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  // Delayed lambda execution
+  std::atomic<bool> delayed_handler_executed{false};
+  looper->PostHandler([&delayed_handler_executed]() {
+    std::cout << "PostHandler: Delayed execution!" << std::endl;
+    delayed_handler_executed = true;
+  }, std::chrono::milliseconds(300));
+
+  std::cout << "Waiting for delayed PostHandler..." << std::endl;
+  auto ph_start = std::chrono::steady_clock::now();
+  while (!delayed_handler_executed) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  auto ph_end = std::chrono::steady_clock::now();
+  auto ph_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(ph_end - ph_start);
+  std::cout << "Delayed PostHandler executed after " << ph_elapsed.count() << "ms" << std::endl;
+
+  // ============================================
+  // Example 9: InvokeHandler (Synchronous Lambda Execution)
+  // ============================================
+  std::cout << "\n[Example 9] InvokeHandler (Synchronous Lambda Execution)" << std::endl;
+
+  // Synchronous lambda execution - blocks until execution completes
+  std::atomic<int> sync_value{0};
+  bool invoke_result = looper->InvokeHandler([&sync_value]() {
+    std::cout << "InvokeHandler: Synchronous execution!" << std::endl;
+    sync_value = 123;
+  });
+  std::cout << "InvokeHandler result: " << (invoke_result ? "success" : "failed") << std::endl;
+  std::cout << "Sync value after InvokeHandler: " << sync_value << std::endl;
+
+  // Synchronous lambda with timeout
+  bool invoke_timeout_result = looper->InvokeHandler([]() {
+    std::cout << "InvokeHandler: Synchronous with timeout!" << std::endl;
+  }, std::chrono::milliseconds(500));
+  std::cout << "InvokeHandler with timeout result: "
+            << (invoke_timeout_result ? "success" : "failed") << std::endl;
+
+  // ============================================
   // Cleanup
   // ============================================
   std::cout << "\n=== Cleaning up ===" << std::endl;

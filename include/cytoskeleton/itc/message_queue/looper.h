@@ -27,12 +27,29 @@ namespace message_queue {
 template <typename T, typename... Args>
 concept MessageConstructible = std::derived_from<T, Message> && std::constructible_from<T, Args...>;
 
+// Internal message type for lambda handlers (PostHandler)
+// Stores the lambda function directly in the message
+class LambdaHandlerMessage : public Message {
+ public:
+  explicit LambdaHandlerMessage(std::function<void()> func)
+      : func_(std::move(func)) {}
+
+  void Execute() {
+    if (func_) {
+      func_();
+    }
+  }
+
+ private:
+  std::function<void()> func_;
+};
+
 class Looper : public std::enable_shared_from_this<Looper> {
  public:
   using Ptr = std::shared_ptr<Looper>;
   using HandlerId = uint64_t;
 
-  static Ptr GetMainLooper(bool auto_start = true) {
+   static Ptr GetMainLooper(bool auto_start = true) {
     std::lock_guard<std::mutex> lock(GetMainLooperMutex());
     if (!GetMainLooperInstance()) {
       GetMainLooperInstance() = std::make_shared<Looper>("MainLooper", auto_start);
@@ -223,6 +240,43 @@ class Looper : public std::enable_shared_from_this<Looper> {
     return true;
   }
 
+  // Post a lambda handler to be executed on the looper thread
+  // @param func: The lambda function to execute (void return, no parameters)
+  // @param delay: Optional delay before execution (default: 0ms)
+  void PostHandler(std::function<void()> func,
+                   std::chrono::milliseconds delay = std::chrono::milliseconds(0)) {
+    // Store the lambda directly in the message
+    auto message = std::make_shared<LambdaHandlerMessage>(std::move(func));
+    message_queue_.EnqueueMessage(message, static_cast<uint64_t>(delay.count()));
+  }
+
+  // Invoke a lambda handler synchronously on the looper thread
+  // @param func: The lambda function to execute (void return, no parameters)
+  // @return true if successful, false if looper is quitting
+  bool InvokeHandler(std::function<void()> func) {
+    // Store the lambda directly in the message
+    auto message = std::make_shared<LambdaHandlerMessage>(std::move(func));
+    if (!message_queue_.EnqueueMessage(message, 0)) {
+      return false;
+    }
+    message->Join();
+    return true;
+  }
+
+  // Invoke a lambda handler synchronously with timeout
+  // @param func: The lambda function to execute (void return, no parameters)
+  // @param timeout: Maximum time to wait for execution
+  // @return true if successful and executed within timeout, false otherwise
+  bool InvokeHandler(std::function<void()> func,
+                     std::chrono::milliseconds timeout) {
+    // Store the lambda directly in the message
+    auto message = std::make_shared<LambdaHandlerMessage>(std::move(func));
+    if (!message_queue_.EnqueueMessage(message, 0)) {
+      return false;
+    }
+    return message->Join(timeout);
+  }
+
   // Start message loop in a new thread
   void AsyncLoop() {
     if (running_.exchange(true)) {
@@ -310,6 +364,13 @@ class Looper : public std::enable_shared_from_this<Looper> {
           }
         }
       }
+    }
+
+    // Finally, handle lambda handlers (PostHandler)
+    // Check if it's a LambdaHandlerMessage and execute the stored lambda directly
+    auto lambda_msg = std::dynamic_pointer_cast<LambdaHandlerMessage>(message);
+    if (lambda_msg) {
+      lambda_msg->Execute();
     }
   }
 

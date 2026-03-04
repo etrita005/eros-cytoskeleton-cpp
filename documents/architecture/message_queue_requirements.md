@@ -337,6 +337,7 @@ looper->RegisterHandler(WM_CLICK, [](object::Object::Ptr wparam, object::Object:
 - `template <typename MessageType, typename... Args> bool SendWithTimeout(std::chrono::milliseconds timeout, Args&&... args)` - 带超时的同步发送
 - `void Post(int what, object::Object::Ptr wparam = nullptr, object::Object::Ptr lparam = nullptr)` - 发送轻量级消息
 - `bool Send(int what, object::Object::Ptr wparam = nullptr, object::Object::Ptr lparam = nullptr)` - 同步发送轻量级消息
+- `void PostHandler(std::function<void()> func, std::chrono::milliseconds delay = std::chrono::milliseconds(0))` - 直接发送 Lambda（无需注册 Handler）
 
 **控制方法：**
 - `void AsyncLoop()` - 在新线程中启动消息循环
@@ -382,6 +383,32 @@ looper->Post(WM_CLICK, point, nullptr);
 
 // 同步发送
 bool success = looper->Send(WM_CLICK, point, nullptr);
+```
+
+**PostHandler（直接发送 Lambda）：**
+```cpp
+// 直接发送 Lambda，无需预先注册 Handler
+looper->PostHandler([]() {
+  LOG(INFO) << "Hello World!";
+});
+
+// 延迟发送
+looper->PostHandler([]() {
+  LOG(INFO) << "Delayed hello!";
+}, std::chrono::seconds(1));
+```
+
+**InvokeHandler（同步执行 Lambda）：**
+```cpp
+// 同步执行 Lambda，等待执行完成
+bool success = looper->InvokeHandler([]() {
+  LOG(INFO) << "Sync execution!";
+});
+
+// 带超时的同步执行
+bool success = looper->InvokeHandler([]() {
+  LOG(INFO) << "Sync with timeout!";
+}, std::chrono::milliseconds(1000));
 ```
 
 **多 Handler 支持：**
