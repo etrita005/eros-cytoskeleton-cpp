@@ -2,8 +2,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["LICENSE", "README.md"])
 
-load("@rules_pkg//pkg:deb.bzl", "pkg_deb")
-load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@eros_forge//bazel:deb.bzl", "pkg_eros_deb", "pkg_eros_tar")
 
 # 编译所有库目标
 filegroup(
@@ -59,59 +58,22 @@ alias(
 # Debian Package Build Rules
 # ============================================================
 
-# Runtime deb package only contains the shared library (stub.cc)
-# Using filegroup with output_group to get only the dynamic library
-filegroup(
-    name = "cytoskeleton_so",
+pkg_eros_tar(
+    name = "cytoskeleton_data",
     srcs = ["//include/cytoskeleton/module"],
     output_group = "dynamic_library",
-    visibility = ["//visibility:private"],
-)
-
-pkg_tar(
-    name = "cytoskeleton_data",
-    srcs = [":cytoskeleton_so"],
-    extension = "tar.gz",
     package_dir = "/opt/eros/lib",
-    visibility = ["//visibility:private"],
+    strip_prefix = "include/cytoskeleton/module",
 )
 
-# Generate version file for deb package
-genrule(
-    name = "deb_version",
-    outs = ["deb_version.txt"],
-    cmd = "bash -c 'if [ -n \"\"\"$${DEB_VERSION}\"\"\" ]; then echo \"\"\"$${DEB_VERSION}\"\"\"; else echo \"0.1.0\"; fi' > $@",
-    visibility = ["//visibility:private"],
-)
-
-# amd64 deb package
-pkg_deb(
-    name = "cytoskeleton_deb_amd64",
-    architecture = "amd64",
-    built_using = "bazel",
+pkg_eros_deb(
+    name = "cytoskeleton_deb",
+    package_name = "cytoskeleton-cpp",
     data = ":cytoskeleton_data",
     description = "Cytoskeleton C++ library - Core framework for EROS",
-    homepage = "https://example.com",
     maintainer = "EROS Team <team@example.com>",
-    package = "cytoskeleton-cpp",
-    version_file = ":deb_version",
+    homepage = "https://example.com",
     section = "libs",
     priority = "optional",
-    visibility = ["//visibility:public"],
-)
-
-# arm64 deb package
-pkg_deb(
-    name = "cytoskeleton_deb_arm64",
-    architecture = "arm64",
     built_using = "bazel",
-    data = ":cytoskeleton_data",
-    description = "Cytoskeleton C++ library - Core framework for EROS",
-    homepage = "https://example.com",
-    maintainer = "EROS Team <team@example.com>",
-    package = "cytoskeleton-cpp",
-    version_file = ":deb_version",
-    section = "libs",
-    priority = "optional",
-    visibility = ["//visibility:public"],
 )
