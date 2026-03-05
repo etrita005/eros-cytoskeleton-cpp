@@ -6,6 +6,7 @@ cc_test(
     name = "message_queue_test",
     srcs = ["message_queue_test.cpp"],
     copts = ["-std=c++20"],
+    linkstatic = True,
     deps = [
         "//include/cytoskeleton/itc/message_queue:message_queue",
         "@googletest//:gtest",
