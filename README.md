@@ -80,136 +80,19 @@ bazel build //examples/...
 bazel build //tests/...
 ```
 
-### 交叉编译（ARM64）
+### 交叉编译
 
-项目支持 ARM64 交叉编译和原生编译。根据您的宿主机和目标架构选择合适的配置：
-
-| 配置 | 说明 | 使用场景 |
-|------|------|----------|
-| `--config=x86_64` | x86_64 原生编译 | 在 x86_64 主机上编译 x86_64 程序 |
-| `--config=arm64` | ARM64 原生编译 | 在 ARM64 主机上编译 ARM64 程序 |
-| `--config=cross_arm64` | 交叉编译到 ARM64 | 在 x86_64 主机上编译 ARM64 程序（使用自定义 glibc） |
-
-#### 交叉编译配置说明
-
-`--config=cross_arm64` 配置会自动嵌入 `/opt/eros/lib` 作为自定义 glibc 路径：
-- 程序会自动使用 `/opt/eros/lib/ld-linux-aarch64.so.1` 作为动态链接器
-- 无需手动指定 loader 或设置 `LD_LIBRARY_PATH`
-- 适用于目标机 glibc 版本较低（如 Ubuntu 18.04 的 glibc 2.27）的情况
-
-#### 安装交叉编译工具链
-
-在 Ubuntu/Debian 系统上安装 ARM64 交叉编译工具链：
+项目支持 ARM64 交叉编译和原生编译，详细文档请参考 [EROS Forge 构建系统](../../forge/README.md)。
 
 ```bash
-# 安装交叉编译器（要求 GCC 11+ 以支持 C++20）
-sudo apt-get update
-sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
-# 验证安装和版本（需要支持 -std=c++20）
-aarch64-linux-gnu-g++ --version
-aarch64-linux-gnu-g++ -std=c++20 -dM -E - < /dev/null | grep __cplusplus
-```
-
-**版本要求**：
-- GCC 11+ （推荐 GCC 13+）
-- 必须支持 C++20 标准（`-std=c++20` 或 `-std=gnu++20`）
-
-**验证 C++20 支持**：
-```bash
-# 检查是否支持 C++20
-aarch64-linux-gnu-g++ -std=c++20 -E -xc++ - </dev/null >/dev/null 2>&1 && echo "C++20 supported" || echo "C++20 NOT supported"
-```
-
-#### 交叉编译全部目标
-
-```bash
-# 交叉编译所有目标（示例、测试、模块库）- x86_64 主机 -> ARM64 目标
+# 交叉编译（x86_64 主机 -> ARM64 目标）
 bazel build --config=cross_arm64 //:all
-
-# 编译所有示例
-bazel build --config=cross_arm64 //examples/...
-
-# 编译所有测试
-bazel build --config=cross_arm64 //tests/...
-
-# 编译所有模块库
-bazel build --config=cross_arm64 //include/cytoskeleton/module:all
 
 # ARM64 原生编译（在 ARM64 主机上）
 bazel build --config=arm64 //:all
 
 # x86_64 原生编译（在 x86_64 主机上）
 bazel build --config=x86_64 //:all
-```
-
-#### 部署到目标机
-
-如果目标机的 glibc 版本较低（如 Ubuntu 18.04 的 glibc 2.27），需要将宿主机的高版本 glibc 和其他依赖的动态库复制到目标机的 `/opt/eros/lib` 目录：
-
-**步骤 1：在宿主机上编译**
-```bash
-bazel build --config=cross_arm64 //:all
-```
-
-**步骤 2：在目标机上创建目录并复制动态库**
-
-需要复制以下类型的动态库到 `/opt/eros/lib`：
-- **glibc 库**：libc.so.6、libm.so.6、libpthread.so.0、libdl.so.2、librt.so.1、ld-linux-aarch64.so.1
-- **编译器运行时库**：libstdc++.so.6、libgcc_s.so.1
-- **Bazel 生成的共享库**：编译过程中生成的 `_solib_aarch64` 目录下的库文件
-
-```bash
-# 在目标机上创建目录（需要 root 权限或确保目录可写）
-ssh <user>@<target-host> "sudo mkdir -p /opt/eros/lib && sudo chmod 755 /opt/eros/lib"
-
-# 复制系统 glibc 和编译器库
-scp /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1 \
-    /usr/aarch64-linux-gnu/lib/libc.so.6 \
-    /usr/aarch64-linux-gnu/lib/libm.so.6 \
-    /usr/aarch64-linux-gnu/lib/libpthread.so.0 \
-    /usr/aarch64-linux-gnu/lib/libdl.so.2 \
-    /usr/aarch64-linux-gnu/lib/librt.so.1 \
-    <user>@<target-host>:/opt/eros/lib/
-
-# 复制编译器运行时库（注意路径可能不同）
-scp /usr/lib/aarch64-linux-gnu/libstdc++.so.6 \
-    /usr/lib/aarch64-linux-gnu/libgcc_s.so.1 \
-    <user>@<target-host>:/opt/eros/lib/
-
-# 复制 Bazel 生成的共享库（从 _solib_aarch64 目录）
-# 首先解引用符号链接
-mkdir -p /tmp/bazel-libs
-cp -L <bazel-cache-path>/bazel-out/aarch64-fastbuild/bin/_solib_aarch64/* /tmp/bazel-libs/
-scp /tmp/bazel-libs/* <user>@<target-host>:/opt/eros/lib/
-
-# 复制其他动态库（如有）
-scp bazel-bin/examples/module/*.so <user>@<target-host>:/opt/eros/lib/
-```
-
-**步骤 3：复制程序到目标机**
-```bash
-# 创建目标目录
-ssh <user>@<target-host> "mkdir -p ~/eros-examples"
-
-# 复制示例程序
-scp bazel-bin/examples/concurrent/*_example <user>@<target-host>:~/eros-examples/
-scp bazel-bin/examples/object/*_example <user>@<target-host>:~/eros-examples/
-scp bazel-bin/examples/itc/message_queue/*_example <user>@<target-host>:~/eros-examples/
-scp bazel-bin/examples/module/loader_example <user>@<target-host>:~/eros-examples/
-
-# 复制测试程序
-scp bazel-bin/tests/concurrent/*_test <user>@<target-host>:~/eros-examples/
-scp bazel-bin/tests/object/*_test <user>@<target-host>:~/eros-examples/
-scp bazel-bin/tests/itc/message_queue/*_test <user>@<target-host>:~/eros-examples/
-scp bazel-bin/tests/module/*_test <user>@<target-host>:~/eros-examples/
-```
-
-**步骤 4：在目标机上运行**
-```bash
-# 程序会自动使用 /opt/eros/lib/ld-linux-aarch64.so.1 作为动态链接器
-# 无需手动指定 loader 或设置 LD_LIBRARY_PATH
-~/eros-examples/mutex_example
 ```
 
 ### 运行示例
@@ -265,55 +148,26 @@ cytoskeleton-cpp/
 ├── src/module/                    # module 模块源码（需要编译）
 │   ├── loader.cc                  # Loader 实现
 │   └── stub.cc                    # RegisterModule 等函数实现
-├── toolchain/                     # Bazel 交叉编译工具链配置
-│   ├── BUILD.bazel                # 工具链定义
-│   └── cc_toolchain_config.bzl    # 工具链配置规则
 ├── examples/                      # 示例代码
-│   ├── concurrent/                # 并发示例（11个）
-│   ├── object/                    # 对象示例（4个）
-│   ├── itc/message_queue/         # 消息队列示例（1个）
+│   ├── concurrent/                # 并发示例（11 个）
+│   ├── object/                    # 对象示例（4 个）
+│   ├── itc/message_queue/         # 消息队列示例（1 个）
 │   └── module/                    # module 模块示例
 ├── tests/                         # 单元测试
-│   ├── concurrent/                # 并发测试（133个）
-│   ├── object/                    # 对象测试（43个）
-│   ├── itc/message_queue/         # 消息队列测试（35个）
-│   └── module/                    # module 模块测试（6个）
+│   ├── concurrent/                # 并发测试（133 个）
+│   ├── object/                    # 对象测试（43 个）
+│   ├── itc/message_queue/         # 消息队列测试（35 个）
+│   └── module/                    # module 模块测试（6 个）
 ├── documents/                     # 文档
 │   └── architecture/
 │       └── module_requirements.md # module 模块需求文档
 ├── MODULE.bazel                   # Bazel 模块定义
 ├── BUILD.bazel                    # 根构建文件
-├── .bazelrc                       # Bazel 构建配置（含交叉编译配置）
+├── .bazelrc                       # Bazel 构建配置（使用 EROS Forge 统一配置）
 └── README.md                      # 本文档
 ```
 
-## 交叉编译工具链配置
-
-项目已配置完整的 Bazel 交叉编译工具链，支持：
-
-- **目标平台**：ARM64 (aarch64-linux-gnu)、x86_64 (x86_64-linux-gnu)
-- **C++标准**：C++20
-- **链接方式**：动态链接（支持共享库）
-- **GLIBC兼容**：交叉编译时通过 `/opt/eros/lib` 指定自定义 glibc 路径
-
-### 工具链文件
-
-- `.bazelrc` - Bazel 构建配置文件
-- `toolchain/BUILD.bazel` - 工具链定义
-- `toolchain/cc_toolchain_config.bzl` - 工具链配置规则
-
-### 使用方法
-
-```bash
-# 交叉编译（x86_64 主机 -> ARM64 目标，使用自定义 glibc）
-bazel build --config=cross_arm64 //examples/...
-
-# ARM64 原生编译（在 ARM64 主机上）
-bazel build --config=arm64 //examples/...
-
-# x86_64 原生编译（在 x86_64 主机上）
-bazel build --config=x86_64 //examples/...
-```
+**注意**：构建配置（包括交叉编译工具链）由 [EROS Forge](../../forge/README.md) 统一管理。
 
 ## 命名空间
 
@@ -356,18 +210,16 @@ bazel test //tests/... --test_output=all
 
 ### 远程测试
 
-交叉编译的示例程序可以部署到 ARM64 目标机进行测试。例如部署到 Ubuntu 18.04 ARM64 目标机：
+交叉编译的示例程序可以部署到 ARM64 目标机进行测试。
 
 ```bash
 # 部署到远程机器（<user>@<target-host> 替换为实际的目标机地址）
 scp bazel-bin/examples/concurrent/*_example <user>@<target-host>:~/eros-examples/
 scp bazel-bin/examples/module/* <user>@<target-host>:~/eros-libs/
 
-# 远程运行测试（程序会自动使用 /opt/eros/lib 的动态链接器）
+# 远程运行测试
 ssh <user>@<target-host> "cd ~/eros-examples && ./mutex_example"
 ```
-
-**注意**：使用 `--config=cross_arm64` 编译的程序会自动嵌入 `/opt/eros/lib/ld-linux-aarch64.so.1` 作为动态链接器，无需手动指定。
 
 **可测试的示例包括**：
 - Concurrent: mutex_example, event_example, vector_example, map_example, hash_map_example, queue_example, list_example, stack_example, thread_example, thread_pool_example, tree_example
@@ -377,12 +229,27 @@ ssh <user>@<target-host> "cd ~/eros-examples && ./mutex_example"
 
 ## 文档
 
-- [Concurrent 模块文档](include/cytoskeleton/concurrent/README.md)
-- [Object 模块文档](include/cytoskeleton/object/README.md)
-- [消息队列使用文档](documents/architecture/message_queue_usage.md)
-- [Module 模块文档](include/cytoskeleton/module/README.md)
-- [Module 模块需求文档](documents/architecture/module_requirements.md)
-- [架构设计文档](documents/architecture/)
+### 使用文档
+
+- [Concurrent 模块使用文档](documents/usage/concurrent_usage.md)
+- [Object 模块使用文档](documents/usage/object_usage.md)
+- [消息队列使用文档](documents/usage/message_queue_usage.md)
+- [Module 模块使用文档](documents/usage/module_usage.md)
+
+### 模块文档
+
+- [Concurrent 模块](include/cytoskeleton/concurrent/README.md)
+- [Object 模块](include/cytoskeleton/object/README.md)
+- [Message Queue 模块](include/cytoskeleton/itc/message_queue/README.md)
+- [Module 模块](include/cytoskeleton/module/README.md)
+
+### 架构设计文档
+
+- [架构设计目录](documents/architecture/)
+- [Concurrent 模块需求](documents/architecture/concurrent_requirements.md)
+- [Object 模块需求](documents/architecture/object_requirements.md)
+- [Message Queue 模块需求](documents/architecture/message_queue_requirements.md)
+- [Module 模块需求](documents/architecture/module_requirements.md)
 
 ## 贡献
 
