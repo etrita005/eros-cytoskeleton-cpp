@@ -29,31 +29,22 @@ int main() {
     std::cout << "Final count: " << counter << std::endl;
   }
 
-  // Example 2: Subclass-based thread
-  std::cout << "\n=== Subclass-Based Thread ===" << std::endl;
+  // Example 2: Function-based thread with state
+  std::cout << "\n=== Function-Based Thread with State ===" << std::endl;
   {
-    class WorkerThread : public Thread {
-     public:
-      WorkerThread() : Thread("worker"), processed_(0) {}
+    std::atomic<int> processed{0};
 
-      void Run(std::stop_token stop_token) override {
-        while (!stop_token.stop_requested()) {
-          std::cout << "Processing item " << ++processed_ << std::endl;
-          std::this_thread::sleep_for(std::chrono::milliseconds(200));
-          if (processed_ >= 3) break;
-        }
+    Thread worker("worker", [&processed](std::stop_token stop_token) {
+      while (!stop_token.stop_requested()) {
+        std::cout << "Processing item " << ++processed << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        if (processed >= 3) break;
       }
+    });
 
-      int GetProcessed() const { return processed_; }
-
-     private:
-      std::atomic<int> processed_;
-    };
-
-    WorkerThread worker;
     worker.Start();
     worker.Join();
-    std::cout << "Total processed: " << worker.GetProcessed() << std::endl;
+    std::cout << "Total processed: " << processed << std::endl;
   }
 
   // Example 3: Graceful shutdown with stop token
@@ -111,6 +102,28 @@ int main() {
     std::cout << "Thread name: " << named.GetName() << std::endl;
     named.Start();
     named.Join();
+  }
+
+  // Example 6: Automatic cleanup on destruction
+  std::cout << "\n=== Automatic Cleanup ===" << std::endl;
+  {
+    std::atomic<bool> finished{false};
+
+    {
+      Thread auto_thread("auto_cleanup", [&finished](std::stop_token stop_token) {
+        for (int i = 0; i < 5; ++i) {
+          if (stop_token.stop_requested()) break;
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        finished = true;
+        std::cout << "Thread finished" << std::endl;
+      });
+
+      auto_thread.Start();
+      // Thread destructor will call RequestStop() and Join()
+    }
+
+    std::cout << "Thread auto-cleaned, finished: " << (finished ? "true" : "false") << std::endl;
   }
 
   return 0;

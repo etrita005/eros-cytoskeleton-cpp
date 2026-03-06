@@ -216,18 +216,38 @@ if (!result) {
 
 #### Thread - jthread 封装
 
+**使用 Lambda 函数创建线程**
+
 ```cpp
 #include "cytoskeleton/concurrent/thread.h"
 
-Thread thread([](std::stop_token st) {
+Thread thread("worker_thread", [](std::stop_token st) {
   while (!st.stop_requested()) {
     std::cout << "Working..." << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 });
 
-// 自动停止并加入
-// 析构时会自动调用 request_stop() 和 join()
+thread.Start();
+
+// 等待一段时间后请求停止
+std::this_thread::sleep_for(std::chrono::seconds(1));
+thread.RequestStop();
+thread.Join();
+```
+
+**自动停止和加入**
+
+```cpp
+{
+  Thread thread("auto_thread", [](std::stop_token st) {
+    while (!st.stop_requested()) {
+      // 工作
+    }
+  });
+  thread.Start();
+  // 离开作用域时自动调用 RequestStop() 和 Join()
+}
 ```
 
 #### ThreadPool - 线程池
@@ -290,6 +310,92 @@ for (size_t i = 0; i < futures.size(); ++i) {
 ### 4. 线程安全容器
 
 所有容器都是线程安全的，内部使用互斥锁保护。
+
+#### Queue - 队列（支持阻塞等待）
+
+```cpp
+#include "cytoskeleton/concurrent/queue.h"
+
+Queue<int> queue;
+
+// 生产者：入队
+queue.Enqueue(1);
+queue.Enqueue(2);
+queue.Enqueue(3);
+
+// 消费者：阻塞出队（队列为空时等待）
+int value;
+queue.Dequeue(value);  // 阻塞直到有数据
+std::cout << "Dequeued: " << value << std::endl;
+
+// 非阻塞出队
+if (queue.TryDequeue(value)) {
+  std::cout << "TryDequeue: " << value << std::endl;
+}
+```
+
+**生产者-消费者示例**
+
+```cpp
+Queue<int> queue;
+
+// 生产者线程
+Thread producer("producer", [&queue](std::stop_token st) {
+  int count = 0;
+  while (!st.stop_requested()) {
+    queue.Enqueue(++count);
+    std::cout << "Produced: " << count << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+});
+
+// 消费者线程
+Thread consumer("consumer", [&queue](std::stop_token st) {
+  while (!st.stop_requested()) {
+    int value;
+    if (queue.Dequeue(value)) {
+      std::cout << "Consumed: " << value << std::endl;
+    }
+  }
+});
+
+producer.Start();
+consumer.Start();
+
+std::this_thread::sleep_for(std::chrono::seconds(5));
+producer.RequestStop();
+consumer.RequestStop();
+producer.Join();
+consumer.Join();
+```
+
+#### Stack - 栈（支持阻塞等待）
+
+```cpp
+#include "cytoskeleton/concurrent/stack.h"
+
+Stack<int> stack;
+
+// 入栈
+stack.Push(1);
+stack.Push(2);
+stack.Push(3);
+
+// 阻塞出栈（栈为空时等待）
+int value;
+stack.Pop(value);  // 阻塞直到有数据
+std::cout << "Popped: " << value << std::endl;
+
+// 非阻塞出栈
+if (stack.TryPop(value)) {
+  std::cout << "TryPop: " << value << std::endl;
+}
+
+// 查看栈顶元素但不移除
+if (stack.TryGet(value)) {
+  std::cout << "Top: " << value << std::endl;
+}
+```
 
 #### Vector - 动态数组
 
@@ -359,39 +465,6 @@ if (auto val = hash_map.Find(1)) {
 }
 ```
 
-#### Queue - 队列
-
-```cpp
-#include "cytoskeleton/concurrent/queue.h"
-
-Queue<int> queue;
-
-queue.Push(1);
-queue.Push(2);
-queue.Push(3);
-
-std::cout << "Front: " << queue.Front() << std::endl;  // 1
-std::cout << "Back: " << queue.Back() << std::endl;    // 3
-
-int val = queue.Pop();  // 移除并返回队首元素
-```
-
-#### Stack - 栈
-
-```cpp
-#include "cytoskeleton/concurrent/stack.h"
-
-Stack<int> stack;
-
-stack.Push(1);
-stack.Push(2);
-stack.Push(3);
-
-std::cout << "Top: " << stack.Top() << std::endl;  // 3
-
-int val = stack.Pop();  // 移除并返回栈顶元素
-```
-
 #### List - 双向链表
 
 ```cpp
@@ -440,44 +513,38 @@ using namespace com::etrita::eros::cytos::concurrent;
 
 int main() {
   Queue<int> queue;
-  ManualResetEvent stop_event(false);
-  const int MAX_SIZE = 10;
+  std::atomic<bool> stop{false};
 
   // 生产者线程
-  Thread producer([&](std::stop_token st) {
+  Thread producer("producer", [&queue, &stop](std::stop_token st) {
     int count = 0;
-    while (!st.stop_requested() && !stop_event.Join(std::chrono::milliseconds(0))) {
-      {
-        MutexLock lock(queue.GetMutex());
-        if (queue.Size() < MAX_SIZE) {
-          queue.Push(++count);
-          std::cout << "Produced: " << count << std::endl;
-        }
-      }
+    while (!st.stop_requested() && !stop.load()) {
+      queue.Enqueue(++count);
+      std::cout << "Produced: " << count << std::endl;
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   });
 
   // 消费者线程
-  Thread consumer([&](std::stop_token st) {
-    while (!st.stop_requested()) {
+  Thread consumer("consumer", [&queue, &stop](std::stop_token st) {
+    while (!st.stop_requested() && !stop.load()) {
       int value;
-      {
-        MutexLock lock(queue.GetMutex());
-        if (queue.Size() > 0) {
-          value = queue.Pop();
-          std::cout << "Consumed: " << value << std::endl;
-        }
+      if (queue.Dequeue(value)) {
+        std::cout << "Consumed: " << value << std::endl;
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(150));
     }
   });
 
+  producer.Start();
+  consumer.Start();
+
   // 运行 5 秒后停止
   std::this_thread::sleep_for(std::chrono::seconds(5));
-  stop_event.Notify();
+  stop.store(true);
   
   // 等待线程结束
+  producer.RequestStop();
+  consumer.RequestStop();
   producer.Join();
   consumer.Join();
 
@@ -546,8 +613,8 @@ void UnsafeFunction() {
 - **List**: 频繁插入/删除，不需要随机访问
 - **Map**: 需要有序键值对
 - **HashMap**: 需要快速查找，不关心顺序
-- **Queue**: FIFO 场景
-- **Stack**: LIFO 场景
+- **Queue**: FIFO 场景，支持阻塞等待
+- **Stack**: LIFO 场景，支持阻塞等待
 
 ### 3. 读写锁优化读性能
 
@@ -598,11 +665,28 @@ if (!event.Join(std::chrono::seconds(5))) {
 }
 
 // 推荐：检查停止标记
-Thread worker([&](std::stop_token st) {
+Thread worker("worker", [&](std::stop_token st) {
   while (!st.stop_requested()) {
     // 工作
   }
 });
+```
+
+### 6. Queue 和 Stack 的阻塞 vs 非阻塞
+
+```cpp
+Queue<int> queue;
+
+// 阻塞操作 - 适合消费者线程
+int value;
+queue.Dequeue(value);  // 队列为空时阻塞等待
+
+// 非阻塞操作 - 适合轮询场景
+if (queue.TryDequeue(value)) {
+  // 成功获取数据
+} else {
+  // 队列为空，可以做其他事情
+}
 ```
 
 ## 相关文档

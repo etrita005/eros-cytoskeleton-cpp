@@ -1,6 +1,7 @@
 // Example: Thread-Safe Stack (LIFO)
-// Demonstrates LIFO operations for undo/redo and expression parsing scenarios
+// Demonstrates LIFO operations with blocking and non-blocking support
 
+#include <chrono>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -90,7 +91,35 @@ int main() {
     type(" C++");
   }
 
-  // Example 4: Filter operation
+  // Example 4: Blocking Pop (Producer-Consumer)
+  std::cout << "\n=== Blocking Pop (Producer-Consumer) ===" << std::endl;
+  {
+    Stack<int> stack;
+    const int num_items = 100;
+    int sum = 0;
+
+    std::thread producer([&]() {
+      for (int i = 1; i <= num_items; ++i) {
+        stack.Push(i);
+      }
+    });
+
+    std::thread consumer([&]() {
+      for (int i = 0; i < num_items; ++i) {
+        int value;
+        stack.Pop(value);  // Blocking - waits if stack is empty
+        sum += value;
+      }
+    });
+
+    producer.join();
+    consumer.join();
+
+    std::cout << "Sum of 1 to " << num_items << " = " << sum << std::endl;
+    std::cout << "Expected: " << (num_items * (num_items + 1) / 2) << std::endl;
+  }
+
+  // Example 5: Filter operation
   std::cout << "\n=== Filter Operation ===" << std::endl;
   {
     Stack<int> stack;
@@ -106,7 +135,7 @@ int main() {
     std::cout << std::endl;
   }
 
-  // Example 5: Concurrent pushes
+  // Example 6: Concurrent pushes
   std::cout << "\n=== Concurrent Pushes ===" << std::endl;
   {
     Stack<int> stack;

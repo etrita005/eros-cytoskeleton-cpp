@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <chrono>
 #include <thread>
 #include <vector>
 
@@ -20,21 +22,21 @@ TEST(StackTest, PushAndSize) {
   EXPECT_EQ(stack.Size(), 2);
 }
 
-TEST(StackTest, Pop) {
+TEST(StackTest, TryPopBasic) {
   Stack<int> stack;
   stack.Push(1);
   stack.Push(2);
 
   int value;
-  EXPECT_TRUE(stack.Pop(value));
+  EXPECT_TRUE(stack.TryPop(value));
   EXPECT_EQ(value, 2);
   EXPECT_EQ(stack.Size(), 1);
 
-  EXPECT_TRUE(stack.Pop(value));
+  EXPECT_TRUE(stack.TryPop(value));
   EXPECT_EQ(value, 1);
   EXPECT_TRUE(stack.Empty());
 
-  EXPECT_FALSE(stack.Pop(value));
+  EXPECT_FALSE(stack.TryPop(value));
 }
 
 TEST(StackTest, TryPop) {
@@ -175,4 +177,49 @@ TEST(StackTest, MoveOnlyType) {
   std::unique_ptr<int> value;
   EXPECT_TRUE(stack.TryPop(value));
   EXPECT_EQ(*value, 2);
+}
+
+TEST(StackTest, BlockingPop) {
+  Stack<int> stack;
+  std::atomic<bool> popped{false};
+  int result = 0;
+
+  std::thread consumer([&]() {
+    stack.Pop(result);
+    popped = true;
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  EXPECT_FALSE(popped);
+
+  stack.Push(42);
+  consumer.join();
+
+  EXPECT_TRUE(popped);
+  EXPECT_EQ(result, 42);
+}
+
+TEST(StackTest, BlockingProducerConsumer) {
+  Stack<int> stack;
+  std::atomic<int> sum{0};
+  const int kNumElements = 1000;
+
+  std::thread producer([&]() {
+    for (int i = 1; i <= kNumElements; ++i) {
+      stack.Push(i);
+    }
+  });
+
+  std::thread consumer([&]() {
+    for (int i = 0; i < kNumElements; ++i) {
+      int value;
+      stack.Pop(value);
+      sum += value;
+    }
+  });
+
+  producer.join();
+  consumer.join();
+
+  EXPECT_EQ(sum, kNumElements * (kNumElements + 1) / 2);
 }

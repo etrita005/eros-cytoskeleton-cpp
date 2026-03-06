@@ -1,11 +1,11 @@
 #pragma once
 
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <stack>
 #include <vector>
-
-#include "cytoskeleton/concurrent/mutex.h"
 
 namespace com {
 namespace etrita {
@@ -27,27 +27,31 @@ class Stack {
   Stack& operator=(Stack&&) = delete;
 
   void Push(const T& value) {
-    MutexLock lock(mutex_);
-    data_.push(value);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      data_.push(value);
+    }
+    cv_.notify_one();
   }
 
   void Push(T&& value) {
-    MutexLock lock(mutex_);
-    data_.push(std::move(value));
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      data_.push(std::move(value));
+    }
+    cv_.notify_one();
   }
 
   bool Pop(T& out) {
-    MutexLock lock(mutex_);
-    if (data_.empty()) {
-      return false;
-    }
+    std::unique_lock<std::mutex> lock(mutex_);
+    cv_.wait(lock, [this] { return !data_.empty(); });
     out = std::move(data_.top());
     data_.pop();
     return true;
   }
 
   bool TryPop(T& out) {
-    MutexLock lock(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     if (data_.empty()) {
       return false;
     }
@@ -57,7 +61,7 @@ class Stack {
   }
 
   bool TryGet(T& out) const {
-    MutexLock lock(const_cast<Mutex&>(mutex_));
+    std::lock_guard<std::mutex> lock(mutex_);
     if (data_.empty()) {
       return false;
     }
@@ -66,24 +70,24 @@ class Stack {
   }
 
   size_t Size() const {
-    MutexLock lock(const_cast<Mutex&>(mutex_));
+    std::lock_guard<std::mutex> lock(mutex_);
     return data_.size();
   }
 
   bool Empty() const {
-    MutexLock lock(const_cast<Mutex&>(mutex_));
+    std::lock_guard<std::mutex> lock(mutex_);
     return data_.empty();
   }
 
   void Clear() {
-    MutexLock lock(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     while (!data_.empty()) {
       data_.pop();
     }
   }
 
   std::vector<T> ToVector() const {
-    MutexLock lock(const_cast<Mutex&>(mutex_));
+    std::lock_guard<std::mutex> lock(mutex_);
     std::vector<T> result;
     std::stack<T> temp = data_;
     while (!temp.empty()) {
@@ -95,7 +99,7 @@ class Stack {
 
   std::vector<T> Filter(
       const std::function<bool(const T&)>& predicate) const {
-    MutexLock lock(const_cast<Mutex&>(mutex_));
+    std::lock_guard<std::mutex> lock(mutex_);
     std::vector<T> result;
     std::stack<T> temp = data_;
     while (!temp.empty()) {
@@ -108,8 +112,9 @@ class Stack {
   }
 
  private:
-  mutable Mutex mutex_;
+  mutable std::mutex mutex_;
   std::stack<T> data_;
+  std::condition_variable cv_;
 };
 
 }  // namespace concurrent

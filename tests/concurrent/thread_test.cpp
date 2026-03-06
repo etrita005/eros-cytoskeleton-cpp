@@ -9,12 +9,10 @@
 
 using namespace com::etrita::eros::cytos::concurrent;
 
-// Helper function to get current thread name from OS (Linux only)
 #ifdef __linux__
 std::string GetCurrentThreadName() {
   std::ifstream comm_file("/proc/thread-self/comm");
   if (!comm_file.is_open()) {
-    // Fallback to syscall
     char name[16];
     if (pthread_getname_np(pthread_self(), name, sizeof(name)) == 0) {
       return std::string(name);
@@ -46,30 +44,22 @@ TEST(ThreadTest, LambdaThread) {
   EXPECT_GE(counter, 5);
 }
 
-class TestThread : public Thread {
- public:
-  TestThread() : Thread("test_subclass"), counter_(0) {}
-
-  void Run(std::stop_token stop_token) override {
-    while (!stop_token.stop_requested()) {
-      ++counter_;
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      if (counter_ >= 5) break;
-    }
-  }
-
-  int GetCounter() const { return counter_; }
-
- private:
-  std::atomic<int> counter_;
-};
-
 TEST(ThreadTest, SubclassThread) {
+  std::atomic<int> counter{0};
+
   {
-    TestThread thread;
+    Thread thread("test_subclass", [&counter](std::stop_token stop_token) {
+      while (!stop_token.stop_requested()) {
+        ++counter;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        if (counter >= 5) break;
+      }
+    });
     thread.Start();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+
+  EXPECT_GE(counter, 5);
 }
 
 TEST(ThreadTest, RequestStop) {
@@ -124,7 +114,6 @@ TEST(ThreadTest, NativeThreadName) {
 
   {
     Thread thread("NativeTest", [&observed_name](std::stop_token stop_token) {
-      // Give some time for the name to be set
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       observed_name = GetCurrentThreadName();
     });
@@ -133,7 +122,6 @@ TEST(ThreadTest, NativeThreadName) {
     thread.Join();
   }
 
-  // Linux thread names are limited to 15 characters + null
   EXPECT_EQ(observed_name, "NativeTest");
 }
 
@@ -151,7 +139,6 @@ TEST(ThreadTest, NativeThreadNameTruncated) {
     thread.Join();
   }
 
-  // Should be truncated to 15 characters on Linux
   EXPECT_EQ(observed_name, long_name.substr(0, 15));
 }
 #endif

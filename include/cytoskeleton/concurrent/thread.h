@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -7,10 +8,8 @@
 #include <string>
 #include <thread>
 
-// Platform-specific includes for setting thread name
 #ifdef _WIN32
 #include <windows.h>
-// For SetThreadDescription (Windows 10 1607+)
 using SetThreadDescriptionFunc = HRESULT(WINAPI*)(HANDLE, PCWSTR);
 #else
 #include <pthread.h>
@@ -24,16 +23,13 @@ namespace concurrent {
 
 namespace detail {
 
-// Cross-platform function to set thread name at OS level
 inline void SetNativeThreadName(const std::string& name) {
 #ifdef _WIN32
-  // Windows: Try SetThreadDescription (Windows 10 1607+)
   HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
   if (kernel32) {
     auto set_thread_desc = reinterpret_cast<SetThreadDescriptionFunc>(
         GetProcAddress(kernel32, "SetThreadDescription"));
     if (set_thread_desc) {
-      // Convert UTF-8 to UTF-16
       int wlen = MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, nullptr, 0);
       if (wlen > 0) {
         std::wstring wname(wlen, 0);
@@ -43,11 +39,8 @@ inline void SetNativeThreadName(const std::string& name) {
     }
   }
 #elif defined(__APPLE__)
-  // macOS: pthread_setname_np (max 64 bytes)
   pthread_setname_np(name.c_str());
 #else
-  // Linux: pthread_setname_np (max 16 bytes including null)
-  // Truncate to 15 characters to fit the limit
   std::string truncated = name.substr(0, 15);
   pthread_setname_np(pthread_self(), truncated.c_str());
 #endif
@@ -59,16 +52,17 @@ class Thread {
  public:
   using Ptr = std::shared_ptr<Thread>;
 
-  explicit Thread(const std::string& name) : name_(name) {}
+  explicit Thread(const std::string& name)
+      : name_(name),
+        func_([](std::stop_token) {}) {}
 
   Thread(const std::string& name,
          std::function<void(std::stop_token)> func)
       : name_(name), func_(std::move(func)) {}
 
-  virtual ~Thread() {
-    if (thread_.joinable()) {
-      thread_.join();
-    }
+  ~Thread() {
+    RequestStop();
+    Join();
   }
 
   Thread(const Thread&) = delete;
@@ -78,38 +72,34 @@ class Thread {
       : name_(std::move(other.name_)),
         func_(std::move(other.func_)),
         thread_(std::move(other.thread_)),
-        started_(other.started_) {
-    other.started_ = false;
+        started_(other.started_.load()) {
+    other.started_.store(false);
   }
 
   Thread& operator=(Thread&& other) noexcept {
     if (this != &other) {
-      if (thread_.joinable()) {
-        thread_.join();
-      }
+      RequestStop();
+      Join();
       name_ = std::move(other.name_);
       func_ = std::move(other.func_);
       thread_ = std::move(other.thread_);
-      started_ = other.started_;
-      other.started_ = false;
+      started_.store(other.started_.load());
+      other.started_.store(false);
     }
     return *this;
   }
 
   void Start() {
-    if (started_) return;
-    started_ = true;
-    if (func_) {
-      thread_ = std::jthread([this](std::stop_token token) {
-        detail::SetNativeThreadName(name_);
-        func_(token);
-      });
-    } else {
-      thread_ = std::jthread([this](std::stop_token token) {
-        detail::SetNativeThreadName(name_);
-        Run(token);
-      });
+    bool expected = false;
+    if (!started_.compare_exchange_strong(expected, true)) {
+      return;
     }
+    std::string name = name_;
+    auto func = func_;
+    thread_ = std::jthread([name, func](std::stop_token token) {
+      detail::SetNativeThreadName(name);
+      func(token);
+    });
   }
 
   void Join() {
@@ -144,15 +134,11 @@ class Thread {
 
   std::string GetName() const { return name_; }
 
-  virtual void Run(std::stop_token stop_token) {
-    (void)stop_token;
-  }
-
  private:
   std::string name_;
   std::function<void(std::stop_token)> func_;
   std::jthread thread_;
-  bool started_ = false;
+  std::atomic<bool> started_{false};
 };
 
 }  // namespace concurrent

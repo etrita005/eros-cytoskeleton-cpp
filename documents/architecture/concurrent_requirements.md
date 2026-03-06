@@ -29,10 +29,10 @@ C++20
 ## 2. 线程安全容器
 
 **实现说明：**
-- 所有线程安全容器内部使用 `Mutex` 或 `ReadWriteMutex` 实现线程安全
-- 读多写少的场景（如 `Map`、`HashMap`）优先使用 `ReadWriteMutex`
-- 写多读少的场景（如 `Queue`、`Stack`）使用 `Mutex`
-- `Mutex` 内部使用递归锁（`std::recursive_mutex`），支持嵌套加锁
+- 所有线程安全容器内部使用 `std::mutex` 实现线程安全
+- 读多写少的场景（如 `Map`、`HashMap`）使用 `std::shared_mutex`
+- 写多读少的场景（如 `Queue`、`Stack`）使用 `std::mutex`
+- **重要**：`Queue` 和 `Stack` 使用 `std::condition_variable` 支持阻塞等待
 
 ### 2.1 Vector<T>
 
@@ -96,21 +96,26 @@ C++20
 
 ### 2.4 Queue<T>
 
-线程安全的 FIFO 队列。
+线程安全的 FIFO 队列，支持阻塞等待。
 
 **类型定义：**
 - `using Ptr = std::shared_ptr<Queue<T>>` - Queue 智能指针类型
 
 **API:**
-- `void Enqueue(const T& value)` / `void Enqueue(T&& value)`
-- `bool Dequeue(T& out)`
-- `bool TryDequeue(T& out)` - 非阻塞
+- `void Enqueue(const T& value)` / `void Enqueue(T&& value)` - 入队，入队后通知等待的消费者
+- `bool Dequeue(T& out)` - **阻塞**出队，队列为空时阻塞等待
+- `bool TryDequeue(T& out)` - **非阻塞**出队，队列为空时返回 false
 - `bool TryGet(T& out) const` - 获取队首元素但不移除
 - `size_t Size() const`
 - `bool Empty() const`
 - `void Clear()`
 - `std::vector<T> ToVector() const` - 转换为 vector
 - `std::vector<T> Filter(const std::function<bool(const T&)>& predicate) const` - 过滤
+
+**线程安全说明：**
+- 使用 `std::mutex` 保护内部数据
+- 使用 `std::condition_variable` 实现阻塞等待
+- `Enqueue` 操作会通知一个等待的 `Dequeue`
 
 ### 2.5 List<T>
 
@@ -134,21 +139,26 @@ C++20
 
 ### 2.6 Stack<T>
 
-线程安全的栈（LIFO）。
+线程安全的栈（LIFO），支持阻塞等待。
 
 **类型定义：**
 - `using Ptr = std::shared_ptr<Stack<T>>` - Stack 智能指针类型
 
 **API:**
-- `void Push(const T& value)` / `void Push(T&& value)`
-- `bool Pop(T& out)`
-- `bool TryPop(T& out)` - 非阻塞
+- `void Push(const T& value)` / `void Push(T&& value)` - 入栈，入栈后通知等待的消费者
+- `bool Pop(T& out)` - **阻塞**出栈，栈为空时阻塞等待
+- `bool TryPop(T& out)` - **非阻塞**出栈，栈为空时返回 false
 - `bool TryGet(T& out) const` - 获取栈顶元素但不移除
 - `size_t Size() const`
 - `bool Empty() const`
 - `void Clear()`
 - `std::vector<T> ToVector() const` - 转换为 vector
 - `std::vector<T> Filter(const std::function<bool(const T&)>& predicate) const` - 过滤
+
+**线程安全说明：**
+- 使用 `std::mutex` 保护内部数据
+- 使用 `std::condition_variable` 实现阻塞等待
+- `Push` 操作会通知一个等待的 `Pop`
 
 ### 2.7 Tree
 
@@ -283,22 +293,17 @@ C++20
 
 线程封装类（内部基于 `std::jthread` 实现）。
 
-**构造方式 1 - 子类继承:**
-```cpp
-class MyThread : public Thread {
- protected:
-  void Run(std::stop_token stop_token) override {
-    while (!stop_token.stop_requested()) {
-      // 执行任务
-    }
-  }
-};
-```
+**设计说明：**
+- **不使用虚函数**，避免 vptr 数据竞争问题
+- 完全使用 `std::function` 回调模式
+- 析构时自动调用 `RequestStop()` 和 `Join()`
 
-**构造方式 2 - Lambda/函数:**
+**构造方式 - Lambda/函数:**
 ```cpp
 Thread thread("my_thread", [](std::stop_token stop_token) {
-  // 线程函数
+  while (!stop_token.stop_requested()) {
+    // 执行任务
+  }
 });
 ```
 
@@ -306,16 +311,20 @@ Thread thread("my_thread", [](std::stop_token stop_token) {
 - `using Ptr = std::shared_ptr<Thread>` - Thread 智能指针类型
 
 **API:**
-- `explicit Thread(const std::string& name)` - 用于子类继承
+- `explicit Thread(const std::string& name)` - 默认构造（空函数）
 - `Thread(const std::string& name, std::function<void(std::stop_token)> func)` - 传入函数/lambda
-- `virtual ~Thread()` - 析构时自动 Join（`std::jthread` 行为）
-- `void Start()` - 启动线程
+- `~Thread()` - 析构时自动 `RequestStop()` 和 `Join()`
+- `void Start()` - 启动线程（使用原子操作保证只启动一次）
 - `void Join()` - 等待线程结束
 - `bool Join(std::chrono::milliseconds timeout)` - 超时等待
-- `void RequestStop()` - 请求线程停止（调用 `std::stop_source::request_stop()`）
-- `bool ShouldStop() const` - 查询是否应该停止（供子类使用）
+- `void RequestStop()` - 请求线程停止
+- `bool ShouldStop() const` - 查询是否应该停止
 - `std::string GetName() const` - 获取线程名称
-- `virtual void Run(std::stop_token stop_token)` - 线程入口（子类重写）
+
+**线程安全说明：**
+- 使用 `std::atomic<bool>` 保护 `started_` 标志
+- Lambda 捕获 `name` 和 `func` 的副本，避免 `this` 指针问题
+- 析构函数先 `RequestStop()` 再 `Join()`，确保安全退出
 
 ### 4.2 ThreadPool
 
@@ -352,3 +361,4 @@ ThreadPool pool(4);  // 4 个线程
 - 同步原语需要进行边界条件测试
 - `Thread` 类需要测试析构时自动 Join 行为
 - `ThreadPool` 需要测试动态伸缩行为
+- 使用 ThreadSanitizer 检测数据竞争
