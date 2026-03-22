@@ -129,11 +129,19 @@ cytoskeleton-cpp/
 │   │   ├── mutex.h
 │   │   ├── event.h
 │   │   ├── thread.h
-│   │   └── thread_pool.h
+│   │   ├── thread_pool.h
+│   │   ├── vector.h
+│   │   ├── list.h
+│   │   ├── queue.h
+│   │   ├── stack.h
+│   │   ├── map.h
+│   │   ├── hash_map.h
+│   │   └── tree.h
 │   ├── object/                    # 对象模块
 │   │   ├── README.md
 │   │   ├── object.h               # Object 基类
 │   │   ├── lifecycled_object.h    # 生命周期对象
+│   │   ├── auto_start_lifecycled_object.h  # 自启动生命周期对象
 │   │   └── singleton.h            # 单例模板
 │   ├── itc/                       # 进程间通信模块
 │   │   └── message_queue/         # 消息队列
@@ -159,8 +167,16 @@ cytoskeleton-cpp/
 │   ├── itc/message_queue/         # 消息队列测试（35 个）
 │   └── module/                    # module 模块测试（6 个）
 ├── documents/                     # 文档
-│   └── architecture/
-│       └── module_requirements.md # module 模块需求文档
+│   ├── architecture/              # 架构设计文档
+│   │   ├── concurrent_requirements.md
+│   │   ├── object_requirements.md
+│   │   ├── message_queue_requirements.md
+│   │   └── module_requirements.md
+│   └── usage/                     # 使用文档
+│       ├── concurrent_usage.md
+│       ├── object_usage.md
+│       ├── message_queue_usage.md
+│       └── module_usage.md
 ├── MODULE.bazel                   # Bazel 模块定义
 ├── BUILD.bazel                    # 根构建文件
 ├── .bazelrc                       # Bazel 构建配置（使用 EROS Forge 统一配置）
