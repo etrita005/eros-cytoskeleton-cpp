@@ -1,0 +1,20 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "time",
+    hdrs = [
+        "time.h",
+        "duration.h",
+        "wall_time.h",
+        "mono_time.h",
+        "time_ops.h",
+        "clock.h",
+        "stopwatch.h",
+        "deadline.h",
+    ],
+    includes = ["../.."],
+    copts = ["-std=c++20"],
+    visibility = ["//visibility:public"],
+)

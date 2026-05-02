@@ -12,6 +12,7 @@ filegroup(
         "//include/cytoskeleton/object",
         "//include/cytoskeleton/itc/message_queue",
         "//include/cytoskeleton/module",
+        "//include/cytoskeleton/time",
     ],
 )
 
@@ -22,6 +23,11 @@ filegroup(
         "//examples/concurrent:all",
         "//examples/itc/message_queue:basic_example",
         "//examples/module:loader_example",
+        "//examples/time:duration_example",
+        "//examples/time:wall_time_example",
+        "//examples/time:stopwatch_example",
+        "//examples/time:deadline_example",
+        "//examples/time:fake_clock_example",
     ],
 )
 
@@ -45,6 +51,12 @@ test_suite(
         "//tests/object:auto_start_lifecycled_object_test",
         "//tests/itc/message_queue:message_queue_test",
         "//tests/module:module_test",
+        "//tests/time:duration_test",
+        "//tests/time:wall_time_test",
+        "//tests/time:mono_time_test",
+        "//tests/time:clock_test",
+        "//tests/time:stopwatch_test",
+        "//tests/time:deadline_test",
     ],
 )
 

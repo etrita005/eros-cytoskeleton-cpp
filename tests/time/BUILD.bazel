@@ -1,0 +1,69 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_test(
+    name = "duration_test",
+    srcs = ["duration_test.cpp"],
+    copts = ["-std=c++20"],
+    linkstatic = True,
+    deps = [
+        "//include/cytoskeleton/time:time",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "wall_time_test",
+    srcs = ["wall_time_test.cpp"],
+    copts = ["-std=c++20"],
+    linkstatic = True,
+    deps = [
+        "//include/cytoskeleton/time:time",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "mono_time_test",
+    srcs = ["mono_time_test.cpp"],
+    copts = ["-std=c++20"],
+    linkstatic = True,
+    deps = [
+        "//include/cytoskeleton/time:time",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "clock_test",
+    srcs = ["clock_test.cpp"],
+    copts = ["-std=c++20"],
+    linkstatic = True,
+    deps = [
+        "//include/cytoskeleton/time:time",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "stopwatch_test",
+    srcs = ["stopwatch_test.cpp"],
+    copts = ["-std=c++20"],
+    linkstatic = True,
+    deps = [
+        "//include/cytoskeleton/time:time",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "deadline_test",
+    srcs = ["deadline_test.cpp"],
+    copts = ["-std=c++20"],
+    linkstatic = True,
+    deps = [
+        "//include/cytoskeleton/time:time",
+        "@googletest//:gtest_main",
+    ],
+)

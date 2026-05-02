@@ -31,6 +31,7 @@ Cytoskeleton 是一个面向机器人应用与服务开发的 C++20 基础库，
 | [object](include/cytoskeleton/object/README.md) | 对象基础：生命周期管理、单例模式 | ✅ 是 | ✅ 已完成 |
 | [itc/message_queue](include/cytoskeleton/itc/message_queue/) | 消息队列：基于消息的异步通信机制 | ✅ 是 | ✅ 已完成 |
 | [module](include/cytoskeleton/module/README.md) | 动态模块加载与管理：插件化架构、动态库加载 | ❌ 否 | ✅ 已完成 |
+| [time](include/cytoskeleton/time/) | 时间基础设施：Duration、WallTime、MonoTime、Clock、Stopwatch、Deadline | ✅ 是 | ✅ 已完成 |
 
 **注意：** `module` 模块由于需要维护全局状态（动态库注册信息），不能实现为 header-only 库，需要编译为静态库或动态库。
 
@@ -55,6 +56,7 @@ cc_binary(
         "@cytoskeleton//include/cytoskeleton/concurrent",
         "@cytoskeleton//include/cytoskeleton/object",
         "@cytoskeleton//include/cytoskeleton/itc/message_queue",
+        "@cytoskeleton//include/cytoskeleton/time",
         # 注意：module 模块需要编译链接，不是 header-only
         "@cytoskeleton//cytoskeleton/module",
     ],
@@ -72,6 +74,7 @@ bazel build //include/cytoskeleton/concurrent:all
 bazel build //include/cytoskeleton/object:all
 bazel build //include/cytoskeleton/itc/message_queue:all
 bazel build //include/cytoskeleton/module:all
+bazel build //include/cytoskeleton/time:all
 
 # 编译示例程序
 bazel build //examples/...
@@ -116,6 +119,12 @@ bazel run //examples/concurrent:thread_example
 # 运行对象示例
 bazel run //examples/object:singleton_example
 bazel run //examples/object:lifecycled_object_example
+
+# 运行时间模块示例
+bazel run //examples/time:duration_example
+bazel run //examples/time:wall_time_example
+bazel run //examples/time:stopwatch_example
+bazel run //examples/time:deadline_example
 ```
 
 ## 项目结构
@@ -153,6 +162,15 @@ cytoskeleton-cpp/
 │       ├── loader.h               # Loader 类定义
 │       ├── stub.h                 # 注册宏定义
 │       └── manifest.h             # 数据结构定义
+│   └── time/                      # 时间基础设施模块
+│       ├── time.h                 # 统一包含头
+│       ├── duration.h             # Duration 时间间隔
+│       ├── wall_time.h            # WallTime 墙上时钟
+│       ├── mono_time.h            # MonoTime 单调时间
+│       ├── time_ops.h             # 跨类型算术运算实现
+│       ├── clock.h                # Clock 抽象 + SystemClock + FakeClock
+│       ├── stopwatch.h            # Stopwatch 耗时统计
+│       └── deadline.h             # Deadline 超时控制
 ├── src/module/                    # module 模块源码（需要编译）
 │   ├── loader.cc                  # Loader 实现
 │   └── stub.cc                    # RegisterModule 等函数实现
@@ -160,23 +178,27 @@ cytoskeleton-cpp/
 │   ├── concurrent/                # 并发示例（11 个）
 │   ├── object/                    # 对象示例（4 个）
 │   ├── itc/message_queue/         # 消息队列示例（1 个）
-│   └── module/                    # module 模块示例
+│   ├── module/                    # module 模块示例
+│   └── time/                      # 时间模块示例（5 个）
 ├── tests/                         # 单元测试
 │   ├── concurrent/                # 并发测试（133 个）
 │   ├── object/                    # 对象测试（43 个）
 │   ├── itc/message_queue/         # 消息队列测试（35 个）
-│   └── module/                    # module 模块测试（6 个）
+│   ├── module/                    # module 模块测试（6 个）
+│   └── time/                      # 时间模块测试（6 个）
 ├── documents/                     # 文档
 │   ├── architecture/              # 架构设计文档
 │   │   ├── concurrent_requirements.md
 │   │   ├── object_requirements.md
-│   │   ├── message_queue_requirements.md
-│   │   └── module_requirements.md
+│       ├── message_queue_requirements.md
+│       ├── module_requirements.md
+│       └── time_requirements.md
 │   └── usage/                     # 使用文档
 │       ├── concurrent_usage.md
 │       ├── object_usage.md
 │       ├── message_queue_usage.md
-│       └── module_usage.md
+│       ├── module_usage.md
+│       └── time_usage.md
 ├── MODULE.bazel                   # Bazel 模块定义
 ├── BUILD.bazel                    # 根构建文件
 ├── .bazelrc                       # Bazel 构建配置（使用 EROS Forge 统一配置）
@@ -194,6 +216,7 @@ com::etrita::eros::cytos::concurrent       // 并发模块
 com::etrita::eros::cytos::object           // 对象模块
 com::etrita::eros::cytos::itc::message_queue  // 消息队列模块
 com::etrita::eros::cytos::module           // 动态模块加载模块
+com::etrita::eros::cytos::time             // 时间基础设施模块
 ```
 
 ## 测试
@@ -208,6 +231,7 @@ bazel test //tests/...
 bazel test //tests/concurrent:all
 bazel test //tests/object:all
 bazel test //tests/itc/message_queue:all
+bazel test //tests/time:all
 
 # 详细输出
 bazel test //tests/... --test_output=all
@@ -221,8 +245,9 @@ bazel test //tests/... --test_output=all
 | object | 43 | ✅ 通过 |
 | itc/message_queue | 35 | ✅ 通过 |
 | module | 6 | ✅ 通过 |
+| time | 55 | ✅ 通过 |
 
-**总计：217 个测试全部通过**
+**总计：272 个测试全部通过**
 
 ### 远程测试
 
@@ -242,6 +267,7 @@ ssh <user>@<target-host> "cd ~/eros-examples && ./mutex_example"
 - ITC: basic_example
 - Object: object_basic_example, lifecycled_object_example, auto_start_example, singleton_example
 - Module: loader_example
+- Time: duration_example, wall_time_example, stopwatch_example, deadline_example, fake_clock_example
 
 ## 文档
 
@@ -251,6 +277,7 @@ ssh <user>@<target-host> "cd ~/eros-examples && ./mutex_example"
 - [Object 模块使用文档](documents/usage/object_usage.md)
 - [消息队列使用文档](documents/usage/message_queue_usage.md)
 - [Module 模块使用文档](documents/usage/module_usage.md)
+- [Time 模块使用文档](documents/usage/time_usage.md)
 
 ### 模块文档
 
@@ -266,6 +293,7 @@ ssh <user>@<target-host> "cd ~/eros-examples && ./mutex_example"
 - [Object 模块需求](documents/architecture/object_requirements.md)
 - [Message Queue 模块需求](documents/architecture/message_queue_requirements.md)
 - [Module 模块需求](documents/architecture/module_requirements.md)
+- [Time 模块需求](documents/architecture/time_requirements.md)
 
 ## 贡献
 

@@ -1,0 +1,38 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "duration_example",
+    srcs = ["duration_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/time:time"],
+)
+
+cc_binary(
+    name = "wall_time_example",
+    srcs = ["wall_time_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/time:time"],
+)
+
+cc_binary(
+    name = "stopwatch_example",
+    srcs = ["stopwatch_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/time:time"],
+)
+
+cc_binary(
+    name = "deadline_example",
+    srcs = ["deadline_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/time:time"],
+)
+
+cc_binary(
+    name = "fake_clock_example",
+    srcs = ["fake_clock_example.cpp"],
+    copts = ["-std=c++20"],
+    deps = ["//include/cytoskeleton/time:time"],
+)
